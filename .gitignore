@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual Environment
+venv/
+
+# OS generated files
+.DS_Store
+
+# Editor files
+.vscode/
