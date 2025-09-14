@@ -4,9 +4,9 @@ python-dotenv
 langchain
 qdrant-client
 pydantic
-pypdf
+# pypdf
 langchain-openai
 langchain-huggingface
 sentence-transformers
 langchain-groq
-
+unstructured[pdf]

@@ -43,7 +43,8 @@ async def ingest_document(file: UploadFile = File(...)):
         with open(temp_file_path, "wb") as f:
             f.write(await file.read())
 
-        loader = PyPDFLoader(temp_file_path)
+        #loader = PyPDFLoader(temp_file_path)
+        loader = UnstructuredPDFLoader(temp_file_path)
         documents = loader.load()
 
         # Add this line to see if documents are being loaded
