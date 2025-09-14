@@ -1,4 +1,6 @@
 import os
+from dotenv import load_dotenv # New import!
+load_dotenv() # New line!
 from fastapi import FastAPI, File, UploadFile
 from pydantic import BaseModel
 
@@ -99,7 +101,8 @@ async def chat_with_docs(request: ChatRequest):
     prompt = ChatPromptTemplate.from_template(template)
     
     # Initialize the LLM with Groq
-    llm = ChatGroq(model="mixtral-8x7b-32768")
+    #llm = ChatGroq(model="mixtral-8x7b-32768")
+    llm = ChatGroq(model="gemma2-9b-it")
 
     rag_chain = (
         {"context": retriever, "question": RunnablePassthrough()}

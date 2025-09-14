@@ -10,3 +10,9 @@ venv/
 
 # Editor files
 .vscode/
+
+# Ignore environment variables
+.env
+
+# Ignore temporary folders and files
+/temp/
