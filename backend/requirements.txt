@@ -9,4 +9,5 @@ langchain-openai
 langchain-huggingface
 sentence-transformers
 langchain-groq
-unstructured[pdf]
+unstructured[all-docs]
+langchain-unstructured

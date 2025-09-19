@@ -4,7 +4,9 @@ load_dotenv() # New line!
 from fastapi import FastAPI, File, UploadFile
 from pydantic import BaseModel
 
-from langchain_community.document_loaders import PyPDFLoader, UnstructuredPDFLoader
+#from langchain_community.document_loaders import PyPDFLoader, UnstructuredPDFLoader
+#from langchain_community.document_loaders import UnstructuredFileLoader
+from langchain_unstructured import UnstructuredLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 #from langchain_community.embeddings import OpenAIEmbeddings
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -38,14 +40,21 @@ async def ingest_document(file: UploadFile = File(...)):
     global qdrant_client_instance
     
     try:
+        print("Received a new file for ingestion.")
         temp_file_path = f"temp/{file.filename}"
         os.makedirs(os.path.dirname(temp_file_path), exist_ok=True)
         with open(temp_file_path, "wb") as f:
             f.write(await file.read())
 
         #loader = PyPDFLoader(temp_file_path)
-        loader = UnstructuredPDFLoader(temp_file_path)
+        #loader = UnstructuredPDFLoader(temp_file_path)
+        #loader = UnstructuredFileLoader(temp_file_path)
+
+        print(f"File saved to temporary path: {temp_file_path}")
+        loader = UnstructuredLoader(temp_file_path)
+        print("Starting document loading...")
         documents = loader.load()
+        print("Document loading complete.")
 
         # Add this line to see if documents are being loaded
         print(f"Loaded {len(documents)} documents.")
@@ -64,6 +73,7 @@ async def ingest_document(file: UploadFile = File(...)):
         
         #embeddings = OpenAIEmbeddings()
         embeddings = HuggingFaceEmbeddings()
+        print("Starting vector store creation...")
         qdrant_client_instance = Qdrant.from_documents(
             texts,
             embeddings,
@@ -71,7 +81,8 @@ async def ingest_document(file: UploadFile = File(...)):
             collection_name="project_documents",
             force_recreate_collection=True
         )
-        
+        print("Vector store creation complete.")
+
         os.remove(temp_file_path)
         
         return {
@@ -79,6 +90,7 @@ async def ingest_document(file: UploadFile = File(...)):
             "message": "Document ingested and processed successfully."
         }
     except Exception as e:
+        print(f"An error occurred during ingestion: {e}")
         return {"error": f"An error occurred: {e}"}
 
 @app.post("/chat")
