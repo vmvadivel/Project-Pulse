@@ -10,7 +10,10 @@ from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Qdrant
 from langchain_community.document_loaders import UnstructuredPDFLoader, UnstructuredFileLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter # New Import
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+# New Imports for Hybrid Search
+from langchain.retrievers import EnsembleRetriever
+from langchain_community.retrievers import BM25Retriever
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -34,6 +37,9 @@ app = FastAPI()
 
 # In-memory history for conversation
 conversation_history: list = []
+
+# Global variable for the QA chain
+qa_chain: Any = None
 
 class ChatRequest(BaseModel):
     query: str
@@ -104,6 +110,25 @@ async def ingest_file(file: UploadFile = File(...)):
             return_source_documents=True
         )
 
+        qdrant_retriever = qdrant_vectorstore.as_retriever(search_kwargs={'k': 5})
+        
+        # Create a BM25 retriever from the texts (for keyword search)
+        bm25_retriever = BM25Retriever.from_documents(documents=texts)
+        bm25_retriever.k = 5
+
+        # Create an Ensemble Retriever to combine both searches
+        ensemble_retriever = EnsembleRetriever(
+            retrievers=[bm25_retriever, qdrant_retriever],
+            weights=[0.5, 0.5]
+        )
+
+        # Create a ConversationalRetrievalChain using the new hybrid retriever
+        qa = ConversationalRetrievalChain.from_llm(
+            llm=llm,
+            retriever=ensemble_retriever,
+            return_source_documents=True
+        )
+
         # Store the QA chain in a global variable or cache for access in chat endpoint
         global qa_chain
         qa_chain = qa
@@ -126,7 +151,7 @@ async def ingest_file(file: UploadFile = File(...)):
 def chat_with_docs(request: ChatRequest):
     """Answers a user's query based on the ingested documents."""
     global qa_chain
-    if 'qa_chain' not in globals():
+    if qa_chain is None:
         raise HTTPException(status_code=400, detail="No documents have been ingested yet. Please upload a file first.")
 
     try:
