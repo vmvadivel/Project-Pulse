@@ -1,129 +1,143 @@
 import os
-from dotenv import load_dotenv # New import!
-load_dotenv() # New line!
-from fastapi import FastAPI, File, UploadFile
+import shutil
+from typing import Any
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from pydantic import BaseModel
-
-#from langchain_community.document_loaders import PyPDFLoader, UnstructuredPDFLoader
-#from langchain_community.document_loaders import UnstructuredFileLoader
-from langchain_unstructured import UnstructuredLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-#from langchain_community.embeddings import OpenAIEmbeddings
+from qdrant_client import QdrantClient
+from qdrant_client.http.models import Distance, VectorParams
+from langchain.chains import ConversationalRetrievalChain
+from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Qdrant
-from langchain_groq import ChatGroq # Changed from langchain_openai
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnableParallel
+from langchain_community.document_loaders import UnstructuredPDFLoader, UnstructuredFileLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter # New Import
+from dotenv import load_dotenv
 
-# Global variable to store the Qdrant client instance
-qdrant_client_instance = None
+# Load environment variables from .env file
+load_dotenv()
 
-# A simple Pydantic model to define the chat request body
+# Check for the GROQ API key
+if "GROQ_API_KEY" not in os.environ:
+    raise ValueError("GROQ_API_KEY environment variable not found. Please set it.")
+
+# Initialize Groq Langchain chat model
+# mistral-saba-24b  
+# llama-3.3-70b-versatile
+
+llm = ChatGroq(temperature=0, model_name="llama-3.3-70b-versatile")
+
+# Initialize HuggingFace embeddings
+embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+
+# Initialize FastAPI
+app = FastAPI()
+
+# In-memory history for conversation
+conversation_history: list = []
+
 class ChatRequest(BaseModel):
     query: str
 
-# Create an instance of the FastAPI application
-app = FastAPI()
+class IngestResponse(BaseModel):
+    message: str
+    num_documents: int
+    num_chunks: int
 
-# Define a root endpoint
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to Project Pulse backend!"}
+    return {"Hello": "World"}
 
-@app.post("/ingest")
-async def ingest_document(file: UploadFile = File(...)):
-    """
-    Ingests a document to be added to the knowledge base.
-    """
-    global qdrant_client_instance
-    
+@app.post("/ingest", response_model=IngestResponse)
+async def ingest_file(file: UploadFile = File(...)):
+    """Ingests a file and creates a vector store."""
+    print("Received a new file for ingestion.")
     try:
-        print("Received a new file for ingestion.")
-        temp_file_path = f"temp/{file.filename}"
-        os.makedirs(os.path.dirname(temp_file_path), exist_ok=True)
-        with open(temp_file_path, "wb") as f:
-            f.write(await file.read())
-
-        #loader = PyPDFLoader(temp_file_path)
-        #loader = UnstructuredPDFLoader(temp_file_path)
-        #loader = UnstructuredFileLoader(temp_file_path)
-
+        # Create a temporary directory if it doesn't exist
+        os.makedirs("temp", exist_ok=True)
+        temp_file_path = os.path.join("temp", file.filename)
         print(f"File saved to temporary path: {temp_file_path}")
-        loader = UnstructuredLoader(temp_file_path)
+
+        # Save the uploaded content to the temporary file
+        with open(temp_file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        # Determine the loader based on file extension
+        ext = os.path.splitext(file.filename)[1].lower()
+        if ext == ".pdf":
+            # Using UnstructuredPDFLoader for PDFs
+            loader = UnstructuredPDFLoader(temp_file_path)
+        else:
+            # Using UnstructuredFileLoader for other file types
+            loader = UnstructuredFileLoader(temp_file_path)
+
         print("Starting document loading...")
         documents = loader.load()
         print("Document loading complete.")
-
-        # Add this line to see if documents are being loaded
         print(f"Loaded {len(documents)} documents.")
-        
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000, chunk_overlap=200
-        )
-        texts = text_splitter.split_documents(documents)
 
-        # Add this line to see if text chunks are being created
+        # Using RecursiveCharacterTextSplitter for better chunking
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=250,
+            chunk_overlap=50,
+            separators=["\n\n", "\n", " ", ""]
+        )
+
+        print("Starting text chunking...")
+        texts = text_splitter.split_documents(documents)
+        print("Text chunking complete.")
         print(f"Created {len(texts)} text chunks.")
 
-        # Check if the list is empty before proceeding
-        if not texts:
-            return {"error": "No text could be extracted from the document."}
-        
-        #embeddings = OpenAIEmbeddings()
-        embeddings = HuggingFaceEmbeddings()
-        print("Starting vector store creation...")
-        qdrant_client_instance = Qdrant.from_documents(
-            texts,
-            embeddings,
-            location=":memory:",
-            collection_name="project_documents",
-            force_recreate_collection=True
+       
+        # Create a Qdrant vector store from the texts
+        # Create a Qdrant vector store from the texts
+        qdrant_vectorstore = Qdrant.from_documents(
+            documents=texts,
+            embedding=embeddings,
+            location=":memory:",  # Use this parameter for an in-memory database
+            collection_name="my_documents"
         )
-        print("Vector store creation complete.")
 
-        os.remove(temp_file_path)
-        
-        return {
-            "filename": file.filename,
-            "message": "Document ingested and processed successfully."
-        }
+        # Create a ConversationalRetrievalChain
+        qa = ConversationalRetrievalChain.from_llm(
+            llm=llm,
+            retriever=qdrant_vectorstore.as_retriever(search_kwargs={'k': 5}),
+            return_source_documents=True
+        )
+
+        # Store the QA chain in a global variable or cache for access in chat endpoint
+        global qa_chain
+        qa_chain = qa
+
+        return IngestResponse(
+            message="File ingested and vector store created successfully.",
+            num_documents=len(documents),
+            num_chunks=len(texts)
+        )
+
     except Exception as e:
-        print(f"An error occurred during ingestion: {e}")
-        return {"error": f"An error occurred: {e}"}
+        print(f"Error during ingestion: {e}")
+        raise HTTPException(status_code=500, detail=f"Error during ingestion: {e}")
+    finally:
+        # Cleanup the temporary file
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
 
 @app.post("/chat")
-async def chat_with_docs(request: ChatRequest):
-    """
-    Handles user queries and provides answers based on ingested documents.
-    """
-    global qdrant_client_instance
+def chat_with_docs(request: ChatRequest):
+    """Answers a user's query based on the ingested documents."""
+    global qa_chain
+    if 'qa_chain' not in globals():
+        raise HTTPException(status_code=400, detail="No documents have been ingested yet. Please upload a file first.")
 
-    if qdrant_client_instance is None:
-        return {"error": "Knowledge base not yet ingested. Please upload a document first."}
+    try:
+        # Use the global conversation history
+        result = qa_chain.invoke({'question': request.query, 'chat_history': conversation_history})
+        response = result['answer']
 
-    retriever = qdrant_client_instance.as_retriever()
+        # Update conversation history with the new question and answer
+        conversation_history.append((request.query, response))
 
-    template = """You are a helpful AI assistant for Project Pulse.
-    Answer the question based only on the following context:
-    {context}
-    
-    Question: {question}
-    """
-    prompt = ChatPromptTemplate.from_template(template)
-    
-    # Initialize the LLM with Groq
-    #llm = ChatGroq(model="mixtral-8x7b-32768")
-    llm = ChatGroq(model="gemma2-9b-it")
-
-    rag_chain = (
-        {"context": retriever, "question": RunnablePassthrough()}
-        | prompt
-        | llm
-        | StrOutputParser()
-    )
-
-    response = rag_chain.invoke(request.query)
-
-    return {"response": response}   
+        return {"response": response}
+    except Exception as e:
+        print(f"Error during chat: {e}")
+        raise HTTPException(status_code=500, detail=f"Error during chat: {e}")
