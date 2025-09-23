@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Project Pulse</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* This is temporary styling for the admin page */
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: var(--background-color);
+        }
+
+        .admin-container {
+            background-color: var(--card-background);
+            color: var(--text-color-light);
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            width: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .admin-container h1 {
+            color: var(--primary-color);
+            margin-top: 0;
+        }
+
+        .admin-container form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <h1>Admin Panel</h1>
+        <h3>Ingest Document</h3>
+        <p>Upload a PDF or text file to ingest it into the knowledge base.</p>
+        <form id="ingest-form">
+            <input type="file" id="file-input" name="file" accept=".pdf,.txt" required>
+            <button type="submit">Ingest File</button>
+        </form>
+        <div id="ingestion-status"></div>
+    </div>
+    <script src="admin.js"></script>
+</body>
+</html>
