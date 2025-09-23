@@ -11,6 +11,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Qdrant
 from langchain_community.document_loaders import UnstructuredPDFLoader, UnstructuredFileLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from fastapi.middleware.cors import CORSMiddleware
 # New Imports for Hybrid Search
 from langchain.retrievers import EnsembleRetriever
 from langchain_community.retrievers import BM25Retriever
@@ -34,6 +35,15 @@ embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-b
 
 # Initialize FastAPI
 app = FastAPI()
+
+# Enable CORS to allow the frontend to access the backend # New code block
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 # In-memory history for conversation
 conversation_history: list = []

@@ -1,6 +1,15 @@
+:root {
+    --primary-color: #5a67d8; /* A deep purple-blue */
+    --secondary-color: #4a5568; /* A dark gray */
+    --background-color: #1a202c; /* A very dark background */
+    --card-background: #2d3748; /* A slightly lighter dark for cards */
+    --text-color-light: #f7fafc; /* Off-white for text */
+    --text-color-dark: #cbd5e0; /* A light gray for contrast */
+}
+
 body {
-    font-family: Arial, sans-serif;
-    background-color: #f0f4f8;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--background-color);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -14,29 +23,26 @@ body {
     width: 100%;
     max-width: 500px;
     height: 80vh;
-    background-color: #fff;
+    background-color: var(--card-background);
     border-radius: 10px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     overflow: hidden;
 }
 
 .chat-header {
-    background-color: #3b82f6;
-    color: #fff;
+    background-color: var(--primary-color);
+    color: var(--text-color-light);
     padding: 1rem;
     display: flex;
     align-items: center;
     justify-content: center;
-}
-
-.user-icon {
-    font-size: 1.5rem;
-    margin-right: 0.5rem;
-}
-
-.app-title {
     font-size: 1.25rem;
     font-weight: 600;
+}
+
+.app-icon {
+    font-size: 1.5rem;
+    margin-right: 0.5rem;
 }
 
 .chat-messages {
@@ -56,39 +62,45 @@ body {
 }
 
 .user-message {
-    background-color: #3b82f6;
-    color: #fff;
+    background-color: var(--primary-color);
+    color: var(--text-color-light);
     align-self: flex-end;
 }
 
 .bot-message {
-    background-color: #e2e8f0;
-    color: #4b5563;
+    background-color: var(--secondary-color);
+    color: var(--text-color-dark);
     align-self: flex-start;
 }
 
 .chat-input-area {
     display: flex;
     padding: 1rem;
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid var(--secondary-color);
 }
 
 #user-input {
     flex-grow: 1;
     padding: 0.75rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--secondary-color);
     border-radius: 9999px;
     outline: none;
     font-size: 1rem;
+    background-color: var(--card-background);
+    color: var(--text-color-light);
 }
 
 #send-button {
-    background-color: #3b82f6;
-    color: #fff;
+    background-color: var(--primary-color);
+    color: var(--text-color-light);
     border: none;
     padding: 0.75rem 1rem;
     border-radius: 9999px;
     cursor: pointer;
     margin-left: 0.5rem;
+    font-size: 1.25rem;
+}
+
+.send-icon {
     font-size: 1.25rem;
 }
