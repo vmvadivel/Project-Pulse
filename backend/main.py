@@ -42,7 +42,40 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
-# In-memory storage for multiple files
+# File type detection helper
+def get_file_type_from_extension(filename: str) -> str:
+    """Get file type from file extension."""
+    ext = os.path.splitext(filename)[1].lower()
+    file_type_map = {
+        '.pdf': 'PDF',
+        '.doc': 'Word',
+        '.docx': 'Word', 
+        '.txt': 'Text',
+        '.csv': 'CSV',
+        '.xlsx': 'Excel',
+        '.xls': 'Excel',
+        '.pptx': 'PowerPoint',
+        '.ppt': 'PowerPoint',
+        '.html': 'HTML',
+        '.htm': 'HTML',
+        '.md': 'Markdown',
+        '.json': 'JSON',
+        '.xml': 'XML'
+    }
+    return file_type_map.get(ext, 'Unknown')
+
+def format_file_size(size_bytes: int) -> str:
+    """Format file size in human readable format."""
+    if size_bytes == 0:
+        return "0 B"
+    size_names = ["B", "KB", "MB", "GB"]
+    import math
+    i = int(math.floor(math.log(size_bytes, 1024)))
+    p = math.pow(1024, i)
+    s = round(size_bytes / p, 2)
+    return f"{s} {size_names[i]}"
+
+# Enhanced in-memory storage for multiple files
 class DocumentStore:
     def __init__(self):
         self.all_documents = []  # Store all documents from all files
@@ -52,19 +85,33 @@ class DocumentStore:
         self.qa_chain = None
         self.conversation_history = []
     
-    def add_documents(self, documents, texts, filename):
+    def add_documents(self, documents, texts, filename, file_info):
         """Add new documents and texts to the store"""
         # Add metadata to track which file each document comes from
         for doc in documents:
-            doc.metadata['source_file'] = filename
+            doc.metadata.update({
+                'source_file': filename,
+                'file_type': file_info['type'],
+                'file_size': file_info['size']
+            })
         for text in texts:
-            text.metadata['source_file'] = filename
+            text.metadata.update({
+                'source_file': filename,
+                'file_type': file_info['type'],
+                'file_size': file_info['size']
+            })
             
         self.all_documents.extend(documents)
         self.all_texts.extend(texts)
+        
+        # Store enhanced file metadata
         self.file_metadata[filename] = {
             'num_documents': len(documents),
-            'num_chunks': len(texts)
+            'num_chunks': len(texts),
+            'file_type': file_info['type'],
+            'file_size': file_info['size'],
+            'file_size_formatted': format_file_size(file_info['size']),
+            'upload_date': file_info.get('upload_date', 'Unknown')
         }
         
         # Rebuild the vector store and QA chain with all documents
@@ -109,7 +156,11 @@ class DocumentStore:
             {
                 'filename': filename,
                 'num_documents': metadata['num_documents'],
-                'num_chunks': metadata['num_chunks']
+                'num_chunks': metadata['num_chunks'],
+                'file_type': metadata['file_type'],
+                'file_size': metadata['file_size'],
+                'file_size_formatted': metadata['file_size_formatted'],
+                'upload_date': metadata.get('upload_date', 'Unknown')
             }
             for filename, metadata in self.file_metadata.items()
         ]
@@ -136,6 +187,8 @@ class IngestResponse(BaseModel):
     total_files: int
     total_documents: int
     total_chunks: int
+    file_type: str
+    file_size_formatted: str
 
 class FileListResponse(BaseModel):
     files: List[dict]
@@ -145,11 +198,11 @@ class FileListResponse(BaseModel):
 
 @app.get("/")
 def read_root():
-    return {"Hello": "World"}
+    return {"Hello": "Multi-File RAG System with File Type Tracking"}
 
 @app.get("/files", response_model=FileListResponse)
 def get_uploaded_files():
-    """Get list of all uploaded files"""
+    """Get list of all uploaded files with complete metadata"""
     files = doc_store.get_file_list()
     return FileListResponse(
         files=files,
@@ -164,19 +217,9 @@ def clear_all_files():
     doc_store.clear_all()
     return {"message": "All files cleared successfully"}
 
-@app.delete("/files/{filename}")
-def delete_specific_file(filename: str):
-    """Delete a specific file (Note: This is a simplified version)"""
-    if filename not in doc_store.file_metadata:
-        raise HTTPException(status_code=404, detail="File not found")
-    
-    # For simplicity, we'll just clear all and suggest re-uploading other files
-    # A more sophisticated implementation would rebuild without the specific file
-    return {"message": f"To remove {filename}, please clear all files and re-upload the ones you want to keep"}
-
 @app.post("/ingest", response_model=IngestResponse)
 async def ingest_file(file: UploadFile = File(...)):
-    """Ingests a file and adds it to the existing vector store."""
+    """Ingests a file and adds it to the existing vector store with enhanced metadata tracking."""
     print(f"Received file for ingestion: {file.filename}")
     
     # Check if file already exists
@@ -197,16 +240,34 @@ async def ingest_file(file: UploadFile = File(...)):
         with open(temp_file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
+        # Get file information
+        file_size = os.path.getsize(temp_file_path)
+        file_type = get_file_type_from_extension(file.filename)
+        
+        print(f"File details - Type: {file_type}, Size: {format_file_size(file_size)}")
+
         # Determine the loader based on file extension
         ext = os.path.splitext(file.filename)[1].lower()
         if ext == ".pdf":
+            # Using UnstructuredPDFLoader for PDFs
             loader = UnstructuredPDFLoader(temp_file_path)
         else:
+            # Using UnstructuredFileLoader for other file types
             loader = UnstructuredFileLoader(temp_file_path)
 
         print("Starting document loading...")
         documents = loader.load()
-        print(f"Loaded {len(documents)} documents from {file.filename}")
+        print("Document loading complete.")
+        print(f"Loaded {len(documents)} documents.")
+
+        # Filter out empty documents
+        documents = [doc for doc in documents if doc.page_content.strip()]
+        
+        if not documents:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No readable content found in {file.filename}. The file might be empty or corrupted."
+            )
 
         # Using RecursiveCharacterTextSplitter for better chunking
         text_splitter = RecursiveCharacterTextSplitter(
@@ -217,10 +278,28 @@ async def ingest_file(file: UploadFile = File(...)):
 
         print("Starting text chunking...")
         texts = text_splitter.split_documents(documents)
-        print(f"Created {len(texts)} text chunks from {file.filename}")
+        print("Text chunking complete.")
+        print(f"Created {len(texts)} text chunks.")
+
+        # Filter out very short chunks
+        texts = [text for text in texts if len(text.page_content.strip()) > 10]
+        
+        if not texts:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No meaningful text chunks created from {file.filename}."
+            )
+
+        # Prepare file info for storage
+        from datetime import datetime
+        file_info = {
+            'type': file_type,
+            'size': file_size,
+            'upload_date': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
 
         # Add documents to the store
-        doc_store.add_documents(documents, texts, file.filename)
+        doc_store.add_documents(documents, texts, file.filename, file_info)
 
         return IngestResponse(
             message=f"File '{file.filename}' ingested successfully and added to existing knowledge base.",
@@ -228,9 +307,13 @@ async def ingest_file(file: UploadFile = File(...)):
             num_chunks=len(texts),
             total_files=len(doc_store.file_metadata),
             total_documents=len(doc_store.all_documents),
-            total_chunks=len(doc_store.all_texts)
+            total_chunks=len(doc_store.all_texts),
+            file_type=file_type,
+            file_size_formatted=format_file_size(file_size)
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error during ingestion: {e}")
         raise HTTPException(status_code=500, detail=f"Error during ingestion: {e}")
@@ -241,7 +324,7 @@ async def ingest_file(file: UploadFile = File(...)):
 
 @app.post("/chat")
 def chat_with_docs(request: ChatRequest):
-    """Answers a user's query based on all ingested documents."""
+    """Answers a user's query based on all ingested documents with enhanced source information."""
     if doc_store.qa_chain is None:
         raise HTTPException(status_code=400, detail="No documents have been ingested yet. Please upload files first.")
 
@@ -255,7 +338,17 @@ def chat_with_docs(request: ChatRequest):
         
         # Get source documents to show which files contributed to the answer
         source_docs = result.get('source_documents', [])
-        source_files = list(set([doc.metadata.get('source_file', 'Unknown') for doc in source_docs]))
+        source_files = []
+        file_types = []
+        
+        for doc in source_docs:
+            source_file = doc.metadata.get('source_file', 'Unknown')
+            file_type = doc.metadata.get('file_type', 'Unknown')
+            
+            if source_file not in source_files:
+                source_files.append(source_file)
+            if file_type not in file_types:
+                file_types.append(file_type)
 
         # Update conversation history
         doc_store.conversation_history.append((request.query, response))
@@ -263,7 +356,9 @@ def chat_with_docs(request: ChatRequest):
         return {
             "response": response,
             "source_files": source_files,
-            "num_sources": len(source_docs)
+            "file_types": file_types,
+            "num_sources": len(source_docs),
+            "total_files_in_knowledge_base": len(doc_store.file_metadata)
         }
     except Exception as e:
         print(f"Error during chat: {e}")
