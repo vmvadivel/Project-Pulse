@@ -1,0 +1,579 @@
+/* Reset and Base Styles */
+* {
+    box-sizing: border-box;
+}
+
+/* Override body styles for admin page */
+body {
+    background: linear-gradient(135deg, var(--background-color) 0%, #0f1419 100%) !important;
+    min-height: 100vh !important;
+    margin: 0 !important;
+    padding: 1rem !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    overflow-x: hidden !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: flex-start !important;
+    height: auto !important;
+}
+
+/* Main Dashboard Container */
+.admin-dashboard {
+    width: 100%;
+    max-width: 1200px;
+    background: rgba(45, 55, 72, 0.95);
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(90, 103, 216, 0.2);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    animation: slideIn 0.6s ease-out;
+    max-height: calc(100vh - 2rem);
+    display: flex;
+    flex-direction: column;
+}
+
+@keyframes slideIn {
+    from { 
+        opacity: 0; 
+        transform: translateY(30px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
+}
+
+/* Header Section */
+.admin-header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #667eea 100%);
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+    text-align: center;
+}
+
+/* FIX: Added missing header content class for alignment */
+.admin-header-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.admin-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -50%;
+    width: 200%;
+    height: 100%;
+    background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+    animation: shimmer 3s infinite;
+    transform: translateX(0);
+}
+
+.header-icon {
+    /* FIX: Increased size for better visibility */
+    width: 40px;
+    height: 40px;
+    /* FIX: Changed fill color to make it more visible */
+    fill: var(--text-color-light); 
+}
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    margin-bottom: 0.5rem;
+}
+
+.section-icon {
+    width: 32px;
+    height: 32px;
+}
+
+.btn-icon {
+    width: 16px;
+    height: 16px;
+}
+
+.empty-state-icon {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 1rem;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* FIX: Added missing header text class */
+.header-text {
+    text-align: left;
+}
+
+.admin-header h1 {
+    color: var(--text-color-light);
+    margin: 0 0 0.5rem 0;
+    font-size: 2.5rem;
+    font-weight: 700;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    position: relative;
+    z-index: 1;
+}
+
+.admin-header p {
+    color: rgba(247, 250, 252, 0.8);
+    margin: 0;
+    font-size: 1.1rem;
+    position: relative;
+    z-index: 1;
+}
+
+/* Content Area - Scrollable */
+.admin-content {
+    padding: 2rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+/* Custom Scrollbar for Content Area */
+.admin-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.admin-content::-webkit-scrollbar-track {
+    background: rgba(45, 55, 72, 0.5);
+    border-radius: 4px;
+}
+
+.admin-content::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
+}
+
+.admin-content::-webkit-scrollbar-thumb:hover {
+    background: #4c63d2;
+}
+
+/* Responsive Layout */
+@media (max-width: 768px) {
+    body {
+        padding: 0.5rem !important;
+    }
+    
+    .admin-content {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+        padding: 1.5rem;
+    }
+    
+    .admin-header h1 {
+        font-size: 2rem;
+    }
+}
+
+/* Statistics Grid */
+.stats-grid {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, var(--card-background) 0%, #2a3441 100%);
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid rgba(90, 103, 216, 0.2);
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(90, 103, 216, 0.15);
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+}
+
+.stat-label {
+    color: var(--text-color-dark);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Section Styles */
+.admin-section {
+    background: var(--card-background);
+    border-radius: 15px;
+    padding: 1.5rem;
+    border: 1px solid rgba(90, 103, 216, 0.1);
+    transition: all 0.3s ease;
+    min-height: 25rem;
+    display: flex;
+    flex-direction: column;
+}
+
+/* FIX: Added missing class for file management section */
+.file-management-section {
+    /* No unique styles needed here, but the class is defined */
+}
+
+.admin-section:hover {
+    border-color: rgba(90, 103, 216, 0.3);
+    box-shadow: 0 10px 30px rgba(90, 103, 216, 0.1);
+    transform: translateY(-2px);
+}
+
+.section-title {
+    color: var(--primary-color);
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.section-header .section-title {
+    margin-bottom: 0;
+}
+
+/* Upload Area */
+.upload-area {
+    border: 2px dashed rgba(90, 103, 216, 0.4);
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.upload-area:hover {
+    border-color: var(--primary-color);
+    background: rgba(90, 103, 216, 0.05);
+}
+
+.upload-area.drag-over {
+    border-color: var(--primary-color);
+    background: rgba(90, 103, 216, 0.1);
+    transform: scale(1.02);
+}
+
+.upload-icon {
+    width: 6rem;
+    height: 6rem;
+    margin-bottom: 1rem;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { 
+        opacity: 1; 
+        transform: scale(1);
+    }
+    50% { 
+        opacity: 0.7; 
+        transform: scale(1.05);
+    }
+}
+
+.upload-text {
+    color: var(--text-color-dark);
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.upload-subtext {
+    color: rgba(203, 213, 224, 0.6);
+    font-size: 0.9rem;
+}
+
+#file-input {
+    display: none;
+}
+
+/* Progress Bar */
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    background: rgba(90, 103, 216, 0.2);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 1rem;
+    display: none;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color), #667eea);
+    width: 0%;
+    transition: width 0.3s ease;
+    border-radius: 3px;
+}
+
+/* Loading Spinner */
+.loading-container {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding: 1rem;
+}
+
+.loading-spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid rgba(90, 103, 216, 0.2);
+    border-top: 3px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+    color: var(--text-color-dark);
+    font-size: 0.9rem;
+}
+
+/* Buttons */
+.btn {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #667eea 100%);
+    color: var(--text-color-light);
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(90, 103, 216, 0.3);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #e53e3e 0%, #fc8181 100%);
+}
+
+.btn-danger:hover {
+    box-shadow: 0 10px 25px rgba(229, 62, 62, 0.3);
+}
+
+/* Status Messages */
+.status-message {
+    padding: 1rem;
+    border-radius: 10px;
+    margin-top: 1rem;
+    font-weight: 500;
+    text-align: center;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.status-message.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.status-success {
+    background: rgba(56, 178, 172, 0.2);
+    color: #68d391;
+    border: 1px solid rgba(56, 178, 172, 0.3);
+}
+
+.status-error {
+    background: rgba(229, 62, 62, 0.2);
+    color: #fc8181;
+    border: 1px solid rgba(229, 62, 62, 0.3);
+}
+
+.status-info {
+    background: rgba(90, 103, 216, 0.2);
+    color: #90cdf4;
+    border: 1px solid rgba(90, 103, 216, 0.3);
+}
+
+/* File List */
+.file-list {
+   /* max-height: 350px;*/
+    overflow-y: auto;
+    border-radius: 10px;
+    margin-top: 1rem;
+    flex-grow: 1;
+}
+
+/* Custom Scrollbar for File List */
+.file-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.file-list::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 3px;
+}
+
+.file-list::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 3px;
+}
+
+.file-list::-webkit-scrollbar-thumb:hover {
+    background: #4c63d2;
+}
+
+/* FIX: Added missing styles for dynamically added files */
+.file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid rgba(90, 103, 216, 0.1);
+    transition: all 0.3s ease;
+    animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+    from { 
+        opacity: 0; 
+        transform: translateY(20px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
+}
+
+.file-item:hover {
+    background: rgba(90, 103, 216, 0.05);
+    border-radius: 8px;
+}
+
+.file-item:last-child {
+    border-bottom: none;
+}
+
+.file-info {
+    flex-grow: 1;
+}
+
+.file-name {
+    color: var(--text-color-light);
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis
+}
+
+.file-details {
+    color: var(--text-color-dark);
+    font-size: 0.85rem;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: nowrap; /* Prevents wrapping in file details */
+    overflow: hidden; /* Prevents overflow */
+}
+
+.file-type-badge {
+    background: var(--primary-color);
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 5px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.delete-btn {
+    background: rgba(229, 62, 62, 0.2);
+    color: #fc8181;
+    border: 1px solid rgba(229, 62, 62, 0.3);
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.85rem;
+
+     /* FIX: Added min-width and min-height for consistent size */
+     min-width: 6rem;
+     min-height: 2.5rem;
+
+      /* FIX: Centered text within the button for perfect alignment */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.delete-btn:hover {
+    background: rgba(229, 62, 62, 0.3);
+    transform: scale(1.05);
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    color: var(--text-color-dark);
+    padding: 3rem 2rem;
+    font-style: italic;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Remove unused class */
+/* .empty-icon {
+    font-size: 4rem;
+    opacity: 0.5;
+    margin-bottom: 1rem;
+} */

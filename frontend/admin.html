@@ -3,54 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - Project Pulse</title>
+    <title>Admin Dashboard - Project Pulse</title>
     <link rel="stylesheet" href="style.css">
-    <style>
-        /* This is temporary styling for the admin page */
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: var(--background-color);
-        }
-
-        .admin-container {
-            background-color: var(--card-background);
-            color: var(--text-color-light);
-            padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-            width: 400px;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .admin-container h1 {
-            color: var(--primary-color);
-            margin-top: 0;
-        }
-
-        .admin-container form {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-    </style>
+    <link rel="stylesheet" href="admin.css">
 </head>
 <body>
-    <div class="admin-container">
-        <h1>Admin Panel</h1>
-        <h3>Ingest Document</h3>
-        <p>Upload a PDF or text file to ingest it into the knowledge base.</p>
-        <form id="ingest-form">
-            <input type="file" id="file-input" name="file" accept=".pdf,.txt" required>
-            <button type="submit">Ingest File</button>
-        </form>
-        <div id="ingestion-status"></div>
+    <div class="admin-dashboard">
+        <!-- Header Section -->
+        <div class="admin-header">
+            <div class="admin-header-content">
+                <img src="assets/icons/dashboard.svg" alt="Dashboard" class="header-icon">
+                <div class="header-text">
+                    <h1>Admin Dashboard</h1>
+                    <p>Manage your knowledge base and monitor system performance</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-content">
+            <!-- Statistics Section -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <img src="assets/icons/files.svg" alt="Files" class="stat-icon">
+                    <div class="stat-number" id="total-files">0</div>
+                    <div class="stat-label">Total Files</div>
+                </div>
+                <div class="stat-card">
+                    <img src="assets/icons/files.svg" alt="Documents" class="stat-icon">
+                    <div class="stat-number" id="total-documents">0</div>
+                    <div class="stat-label">Documents</div>
+                </div>
+                <div class="stat-card">
+                    <img src="assets/icons/stats.svg" alt="Chunks" class="stat-icon">
+                    <div class="stat-number" id="total-chunks">0</div>
+                    <div class="stat-label">Text Chunks</div>
+                </div>
+            </div>
+
+            <!-- Upload Section -->
+            <div class="admin-section upload-section">
+                <h2 class="section-title">
+                    <img src="assets/icons/folder.svg" alt="Upload" class="section-icon">
+                    Upload Documents
+                </h2>
+                <div class="upload-area" id="upload-area">
+                    <img src="assets/icons/cloud-upload.svg" alt="Upload" class="upload-icon">
+                    <div class="upload-text">Drop files here or click to browse</div>
+                    <div class="upload-subtext">Supports PDF, Word, Excel, PowerPoint, and more</div>
+                    <input type="file" id="file-input" multiple 
+                           accept=".pdf,.doc,.docx,.txt,.xlsx,.xls,.pptx,.ppt,.csv,.html,.md">
+                </div>
+                
+                <!-- Progress Bar -->
+                <div class="progress-bar" id="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                
+                <!-- Loading Spinner -->
+                <div class="loading-container" id="loading-container">
+                    <img src="assets/icons/loader.svg" alt="Loading" class="loading-spinner" id="loading-spinner">
+                    <span class="loading-text">Processing files...</span>
+                </div>
+                
+                <!-- Upload Status -->
+                <div id="upload-status" class="status-message"></div>
+            </div>
+
+            <!-- File Management Section -->
+            <div class="admin-section file-management-section">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <img src="assets/icons/files.svg" alt="Files" class="section-icon">
+                        File Management
+                    </h2>
+                    <button class="btn btn-danger" id="clear-all-btn">
+                        <img src="assets/icons/trash.svg" alt="Clear All" class="btn-icon">
+                        Clear All
+                    </button>
+                </div>
+                
+                <!-- File List -->
+                <div class="file-list" id="file-list">
+                    <div class="empty-state">
+                        <img src="assets/icons/files.svg" alt="No Files" class="empty-state-icon">
+                        <p>No files uploaded yet. Upload your first document to get started!</p>
+                    </div>
+                </div>
+                
+                <!-- File Management Status -->
+                <div id="file-status" class="status-message"></div>
+            </div>
+        </div>
     </div>
+
     <script src="admin.js"></script>
 </body>
 </html>
