@@ -577,3 +577,282 @@ body {
     opacity: 0.5;
     margin-bottom: 1rem;
 } */
+
+/* Enhanced Admin Dashboard CSS */
+/* Based on existing admin.css with minor improvements */
+
+/* All existing styles remain the same, with these additions: */
+
+/* Connection Status Indicator */
+#connection-status {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    z-index: 10;
+    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+}
+
+#connection-status::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.3);
+    animation: pulse-ring 2s infinite;
+}
+
+@keyframes pulse-ring {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1.5); opacity: 0; }
+}
+
+/* Enhanced File Item Layout */
+.file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid rgba(90, 103, 216, 0.1);
+    transition: all 0.3s ease;
+    animation: fadeInUp 0.5s ease-out;
+    position: relative;
+}
+
+.file-item:hover {
+    background: rgba(90, 103, 216, 0.05);
+    border-radius: 8px;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* File Actions Container */
+.file-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+/* Enhanced Delete Button */
+.delete-btn {
+    background: rgba(229, 62, 62, 0.2);
+    color: #fc8181;
+    border: 1px solid rgba(229, 62, 62, 0.3);
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.85rem;
+    min-width: 6rem;
+    min-height: 2.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.25rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.delete-btn:hover {
+    background: rgba(229, 62, 62, 0.3);
+    transform: scale(1.05);
+    box-shadow: 0 2px 10px rgba(229, 62, 62, 0.2);
+}
+
+.delete-btn:active {
+    transform: scale(0.98);
+}
+
+/* File Type Icon in File List */
+.file-type-icon {
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    opacity: 0.8;
+}
+
+/* Enhanced File Details with Better Spacing */
+.file-details {
+    color: var(--text-color-dark);
+    font-size: 0.85rem;
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 0.25rem;
+}
+
+.file-details > span {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    padding: 2px 0;
+}
+
+/* Enhanced File Type Badge with Colors */
+.file-type-badge {
+    color: white !important;
+    padding: 0.2rem 0.5rem;
+    border-radius: 5px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* Loading States */
+.file-item.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.file-item.loading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(90, 103, 216, 0.1);
+    animation: loading-pulse 1.5s infinite;
+}
+
+@keyframes loading-pulse {
+    0%, 100% { opacity: 0.1; }
+    50% { opacity: 0.3; }
+}
+
+/* Enhanced Status Messages */
+.status-message {
+    padding: 1rem;
+    border-radius: 10px;
+    margin-top: 1rem;
+    font-weight: 500;
+    text-align: left;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.status-message::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: currentColor;
+    opacity: 0.8;
+}
+
+/* Enhanced Upload Area with Better Visual Feedback */
+.upload-area {
+    border: 2px dashed rgba(90, 103, 216, 0.4);
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+}
+
+.upload-area.drag-over {
+    border-color: var(--primary-color);
+    background: rgba(90, 103, 216, 0.1);
+    transform: scale(1.02);
+    box-shadow: 0 10px 25px rgba(90, 103, 216, 0.15);
+}
+
+.upload-area.drag-over .upload-icon {
+    transform: scale(1.1);
+    animation: bounce 0.6s ease-in-out;
+}
+
+@keyframes bounce {
+    0%, 20%, 60%, 100% { transform: translateY(0) scale(1.1); }
+    40% { transform: translateY(-10px) scale(1.1); }
+    80% { transform: translateY(-5px) scale(1.1); }
+}
+
+/* Performance Indicators */
+.performance-stats {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    font-size: 0.7rem;
+    color: var(--text-color-muted);
+    opacity: 0.8;
+}
+
+/* Tooltip Styles */
+[title] {
+    position: relative;
+    /*cursor: help;*/
+}
+
+/* Enhanced Animations */
+@keyframes fadeInUp {
+    from { 
+        opacity: 0; 
+        transform: translateY(20px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
+}
+
+/* Mobile Responsiveness Improvements */
+@media (max-width: 768px) {
+    .file-details {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .file-actions {
+        margin-top: 0.5rem;
+        align-self: flex-end;
+    }
+    
+    .file-item {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 1rem 0.75rem;
+    }
+    
+    #connection-status {
+        top: 10px;
+        right: 10px;
+    }
+}
+
+/* Dark Mode Enhancements */
+@media (prefers-color-scheme: dark) {
+    .file-item:hover {
+        background: rgba(90, 103, 216, 0.08);
+    }
+    
+    .delete-btn:hover {
+        background: rgba(229, 62, 62, 0.25);
+    }
+}

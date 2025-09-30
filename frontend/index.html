@@ -3,28 +3,136 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Pulse</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Virtual Buddy - AI Assistant</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <meta name="description" content="Virtual Buddy - Your intelligent AI assistant for document analysis and Q&A">
 </head>
 <body>
-    <div class="chat-container">
-        <div class="chat-header">
-            <!--img class="app-icon" src="assets/icons/virtualbuddy3.png" alt="Virtual Buddy Icon"-->
-            <span class="app-icon">🤖</span>
-            <span class="app-title">Virtual Buddy</span>
-        </div>
+    <!-- Theme Toggle Button -->
+    <button id="theme-toggle" class="theme-toggle-btn" title="Toggle Theme" aria-label="Toggle theme">
+        <img src="assets/icons/sun.svg" alt="Theme" class="theme-icon" id="theme-icon">
+    </button>
 
-        <div class="chat-messages" id="chat-messages">
+    <div class="chat-app">
+        <div class="chat-container">
+            <!-- Header -->
+            <div class="chat-header">
+                <div class="header-content">
+                    <div class="app-icon-container">
+                        <img src="assets/icons/bot.svg" alt="Virtual Buddy" class="app-icon">
+                        <div class="status-indicator"></div>
+                    </div>
+                    <div class="app-info">
+                        <h1 class="app-title">Virtual Buddy</h1>
+                        <p class="app-subtitle">AI Document Assistant</p>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button class="header-btn" id="clear-chat" title="Clear Chat" aria-label="Clear chat">
+                        <img src="assets/icons/clear.svg" alt="Clear" class="btn-icon">
+                    </button>
+                    <button class="header-btn" id="settings-btn" title="Settings" aria-label="Settings">
+                        <img src="assets/icons/settings.svg" alt="Settings" class="btn-icon">
+                    </button>
+                </div>
             </div>
 
-        <div class="chat-input-area">
-            <input type="text" id="user-input" placeholder="Type your question here...">
-            <button id="send-button">
-                <!--img class="send-icon" src="assets/icons/send2.png" alt="Send Icon"-->
-                <span class="send-icon">➤</span>
-            </button>
+            <!-- Messages Area -->
+            <div class="chat-messages" id="chat-messages">
+                <div class="message bot-message welcome-message">
+                    <div class="message-avatar">
+                        <img src="assets/icons/bot.svg" alt="Bot" class="avatar-icon">
+                    </div>
+                    <div class="message-content">
+                        <div class="message-bubble">
+                            <div class="message-text">
+                                Hello! I'm your Virtual Buddy, an AI assistant trained on your documents. 
+                                I can help you find information, answer questions, and provide insights based on your uploaded content.
+                                <br><br>
+                                <strong>What can I help you with today?</strong>
+                            </div>
+                            <div class="message-time" id="welcome-time"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Typing Indicator -->
+            <div class="typing-indicator" id="typing-indicator">
+                <div class="message-avatar">
+                    <img src="assets/icons/bot.svg" alt="Bot" class="avatar-icon">
+                </div>
+                <div class="typing-bubble">
+                    <div class="typing-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="chat-input-area">
+                <div class="input-container">
+                    <div class="input-wrapper">
+                        <textarea 
+                            id="user-input" 
+                            placeholder="Type your message here..." 
+                            rows="1"
+                            maxlength="2000"
+                            aria-label="Message input"
+                        ></textarea>
+                        <button id="send-button" class="send-btn" title="Send Message" aria-label="Send message">
+                            <img src="assets/icons/send.svg" alt="Send" class="send-icon">
+                        </button>
+                    </div>
+                    <div class="input-footer">
+                        <span class="char-count" id="char-count">0/2000</span>
+                        <span class="input-hint">Press Enter to send, Shift+Enter for new line</span>
+                    </div>
+                </div>
+            </div>
         </div>
+
+        <!-- Settings Panel -->
+        <div class="settings-panel" id="settings-panel">
+            <div class="settings-header">
+                <h3>Settings</h3>
+                <button class="close-settings" id="close-settings" aria-label="Close settings">&times;</button>
+            </div>
+            <div class="settings-content">
+                <div class="setting-group">
+                    <label class="setting-label">
+                        <span>Font Size</span>
+                        <select id="font-size-select" aria-label="Font size">
+                            <option value="14">Small</option>
+                            <option value="16" selected>Medium</option>
+                            <option value="18">Large</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="setting-group">
+                    <label class="setting-label">
+                        <span>Auto-scroll</span>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="auto-scroll" checked aria-label="Auto-scroll toggle">
+                            <span class="slider"></span>
+                        </div>
+                    </label>
+                </div>
+                <div class="setting-group">
+                    <button class="settings-btn danger" id="clear-all-data">
+                        <img src="assets/icons/clear.svg" alt="Clear" class="btn-icon">
+                        Clear All Chat History
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Overlay -->
+        <div class="settings-overlay" id="settings-overlay"></div>
     </div>
-    <script src="chat.js"></script>
+
+    <script src="assets/scripts/chat.js"></script>
 </body>
 </html>

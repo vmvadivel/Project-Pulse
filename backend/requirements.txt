@@ -1,13 +1,30 @@
-fastapi
-uvicorn[standard]
-python-dotenv
-langchain
-qdrant-client
-pydantic
-# pypdf
-langchain-openai
-langchain-huggingface
-sentence-transformers
-langchain-groq
-unstructured[all-docs]
-langchain-unstructured
+# Core FastAPI
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+python-dotenv==1.0.1
+
+# LangChain Core
+langchain==0.3.7
+langchain-community==0.3.5
+langchain-text-splitters==0.3.2
+
+# Vector Store
+qdrant-client==1.12.1
+langchain-qdrant==0.1.4
+
+# LLM Providers
+langchain-groq==0.2.1
+
+# Embeddings
+langchain-huggingface==0.1.2
+sentence-transformers==3.3.1
+
+# Document Processing
+unstructured[all-docs]==0.16.9
+langchain-unstructured==0.1.4
+
+# Data Models
+pydantic==2.10.3
+
+
+# pip install -r requirements.txt
