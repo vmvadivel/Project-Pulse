@@ -234,8 +234,8 @@ def process_document_sync(temp_file_path: str, filename: str) -> tuple:
 
     # Using RecursiveCharacterTextSplitter for better chunking
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=500,
-        chunk_overlap=100,
+        chunk_size=1000,  # Increased to capture more complete booking info
+        chunk_overlap=200,  # Increased overlap to avoid splitting related info
         separators=["\n\n", "\n", ". ", " ", ""]
     )
 
@@ -473,6 +473,29 @@ class DocumentStore:
                 print(f"Error removing file {filename}: {e}")
                 return False
     
+    def _create_qa_prompt(self):
+        """Create an enhanced prompt for better multi-document retrieval"""
+        from langchain.prompts import PromptTemplate
+        
+        template = """You are a helpful assistant answering questions based on the provided context from documents.
+
+CRITICAL INSTRUCTIONS:
+1. Read through ALL the context provided below carefully - it may come from multiple different documents
+2. When a question mentions multiple items, entities, or topics, search through the ENTIRE context for each one
+3. Synthesize information from different parts of the context when answering
+4. If you find information about some aspects of the question but not others, clearly state what you found and what is missing
+5. Base your answer ONLY on the provided context - do not make assumptions or add external knowledge
+6. If the context does not contain enough information to fully answer the question, say so explicitly
+
+Context:
+{context}
+
+Question: {question}
+
+Answer:"""
+        
+        return PromptTemplate(template=template, input_variables=["context", "question"])
+    
     def _rebuild_qa_chain(self):
         """Rebuild the QA chain with all documents"""
         try:
@@ -491,20 +514,20 @@ class DocumentStore:
             
             if self.all_texts and self.qdrant_vectorstore:
                 qdrant_retriever = self.qdrant_vectorstore.as_retriever(
-                    search_kwargs={'k': 5}
+                    search_kwargs={'k': 10}  # Increased from 5 to retrieve more context
                 )
                 
                 bm25_retriever = BM25Retriever.from_documents(documents=self.all_texts)
-                bm25_retriever.k = 5
+                bm25_retriever.k = 10  # Increased from 5
                 
                 retriever = EnsembleRetriever(
                     retrievers=[bm25_retriever, qdrant_retriever],
-                    weights=[0.3, 0.7]
+                    weights=[0.4, 0.6]  # Slightly favor BM25 for keyword matching
                 )
             
             elif self.qdrant_vectorstore:
                 retriever = self.qdrant_vectorstore.as_retriever(
-                    search_kwargs={'k': 5}
+                    search_kwargs={'k': 10}  # Increased from 5
                 )
             else:
                 self.qa_chain = None
@@ -513,7 +536,10 @@ class DocumentStore:
             self.qa_chain = ConversationalRetrievalChain.from_llm(
                 llm=llm,
                 retriever=retriever,
-                return_source_documents=True
+                return_source_documents=True,
+                combine_docs_chain_kwargs={
+                    "prompt": self._create_qa_prompt()
+                }
             )
             
         except Exception as e:
@@ -916,10 +942,11 @@ async def chat_with_docs(request: ChatRequest):
         
         response = result['answer']
         
-        # Get source documents
+        # Get source documents with detailed metadata
         source_docs = result.get('source_documents', [])
         source_files = []
         file_types = []
+        source_details = []
         
         for doc in source_docs:
             source_file = doc.metadata.get('source_file', 'Unknown')
@@ -929,6 +956,19 @@ async def chat_with_docs(request: ChatRequest):
                 source_files.append(source_file)
             if file_type not in file_types:
                 file_types.append(file_type)
+            
+            # Add detailed source info for debugging
+            source_details.append({
+                'file': source_file,
+                'type': file_type,
+                'content_preview': doc.page_content[:200] + '...' if len(doc.page_content) > 200 else doc.page_content
+            })
+
+        # Log retrieved sources for debugging
+        print(f"\n=== RETRIEVAL DEBUG ===")
+        print(f"Query: {request.query}")
+        print(f"Retrieved {len(source_docs)} chunks from {len(source_files)} files: {source_files}")
+        print(f"======================\n")
 
         # Update conversation history
         doc_store.conversation_history.append((request.query, response))
@@ -943,6 +983,7 @@ async def chat_with_docs(request: ChatRequest):
             "source_files": source_files,
             "file_types": file_types,
             "num_sources": len(source_docs),
+            "source_details": source_details,  # Added for debugging
             "total_files_in_knowledge_base": len(doc_store.file_metadata),
             "response_time": f"{processing_time:.2f}s",
             "storage_type": "persistent" if doc_store.qdrant_client else "in-memory"
