@@ -13,6 +13,18 @@ venv/
 
 # Ignore environment variables
 .env
+.env.local
+.env.*.local
 
 # Ignore temporary folders and files
 /temp/
+*.tmp
+*.bak
+
+# Qdrant persistent storage (IMPORTANT)
+/qdrant_storage/
+qdrant_storage/
+
+# Log files
+*.log
+logs/
