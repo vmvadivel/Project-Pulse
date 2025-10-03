@@ -8,6 +8,7 @@ from typing import Any, List
 from fastapi import FastAPI, UploadFile, File, BackgroundTasks
 from exceptions import *
 from config import *
+from utils import *
 from pydantic import BaseModel
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue
@@ -68,43 +69,6 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
-def validate_uploaded_file(file: UploadFile, max_size: int = MAX_FILE_SIZE):
-    """Validate uploaded file before processing."""
-    
-    # Check file size
-    if file.size and file.size > max_size:
-        raise FileTooLarge(file.filename, file.size, max_size)
-    
-    # Check file extension
-    ext = os.path.splitext(file.filename)[1].lower()
-    supported_extensions = ['.pdf', '.doc', '.docx', '.txt', '.csv', '.xlsx', 
-                           '.xls', '.pptx', '.ppt', '.html', '.htm', '.md', 
-                           '.json', '.xml']
-    
-    if ext not in supported_extensions:
-        file_type = get_file_type_from_extension(file.filename)
-        raise UnsupportedFileType(file.filename, file_type)
-    
-    # Check if file already exists
-    if file.filename in doc_store.file_metadata:
-        raise FileAlreadyExists(file.filename)
-
-# File type detection helper
-def get_file_type_from_extension(filename: str) -> str:
-    """Get file type from file extension."""
-    ext = os.path.splitext(filename)[1].lower()
-    return FILE_TYPE_MAP.get(ext, 'Unknown')
-
-def format_file_size(size_bytes: int) -> str:
-    """Format file size in human readable format."""
-    if size_bytes == 0:
-        return "0 B"
-    size_names = ["B", "KB", "MB", "GB"]
-    import math
-    i = int(math.floor(math.log(size_bytes, 1024)))
-    p = math.pow(1024, i)
-    s = round(size_bytes / p, 2)
-    return f"{s} {size_names[i]}"
 
 def initialize_qdrant_client():
     """Initialize Qdrant client with persistent storage."""
@@ -873,8 +837,8 @@ async def ingest_file(file: UploadFile = File(...)):
     print(f"Received file for ingestion: {file.filename} ({format_file_size(file.size or 0)})")
     
     # Validate file size (100MB limit)
-    MAX_FILE_SIZE = 100 * 1024 * 1024
-    validate_uploaded_file(file, MAX_FILE_SIZE)
+    #MAX_FILE_SIZE = 100 * 1024 * 1024
+    validate_uploaded_file(file, set(doc_store.file_metadata.keys()), MAX_FILE_SIZE)
 
     # if file.size and file.size > MAX_FILE_SIZE:
        # raise HTTPException(
