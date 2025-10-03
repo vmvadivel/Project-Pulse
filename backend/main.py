@@ -3,10 +3,11 @@ import shutil
 import asyncio
 import uuid
 from typing import Any, List
-from concurrent.futures import ThreadPoolExecutor
+#from concurrent.futures import ThreadPoolExecutor
 #from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi import FastAPI, UploadFile, File, BackgroundTasks
 from exceptions import *
+from config import *
 from pydantic import BaseModel
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue
@@ -20,7 +21,7 @@ from langchain.schema import Document
 from fastapi.middleware.cors import CORSMiddleware
 from langchain.retrievers import EnsembleRetriever
 from langchain_community.retrievers import BM25Retriever
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 import time
 import threading
 from datetime import datetime
@@ -28,31 +29,31 @@ import json
 import gc
 
 # Load environment variables from .env file
-load_dotenv()
+#load_dotenv()
 
 # Check for the GROQ API key
-if "GROQ_API_KEY" not in os.environ:
+#if "GROQ_API_KEY" not in os.environ:
     #raise ValueError("GROQ_API_KEY environment variable not found. Please set it.")
-    raise MissingAPIKey("Groq LLM") 
+#    raise MissingAPIKey("Groq LLM") 
 
 # Configuration
-QDRANT_STORAGE_PATH = os.getenv("QDRANT_STORAGE_PATH", "./qdrant_storage")
-COLLECTION_NAME = "all_documents"
+#QDRANT_STORAGE_PATH = os.getenv("QDRANT_STORAGE_PATH", "./qdrant_storage")
+#COLLECTION_NAME = "all_documents"
 
 # Initialize Groq Langchain chat model
-llm = ChatGroq(temperature=0, model_name="llama-3.3-70b-versatile")
+#llm = ChatGroq(temperature=0, model_name="llama-3.3-70b-versatile")
 
 # Initialize HuggingFace embeddings
-embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+#embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
 
 # Thread pool for CPU-intensive operations
-executor = ThreadPoolExecutor(max_workers=4)
+#executor = ThreadPoolExecutor(max_workers=4)
 
 # Initialize FastAPI
 app = FastAPI(
-    title="Enhanced Multi-File RAG System with Persistence",
-    description="High-performance RAG system with persistent storage and concurrent user support",
-    version="2.1.0"
+    title=APP_TITLE,
+    description=APP_DESCRIPTION,
+    version=APP_VERSION
 )
 
 # === NEW: Register Custom Error Handlers ===
@@ -67,7 +68,7 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
-def validate_uploaded_file(file: UploadFile, max_size: int = 100 * 1024 * 1024):
+def validate_uploaded_file(file: UploadFile, max_size: int = MAX_FILE_SIZE):
     """Validate uploaded file before processing."""
     
     # Check file size
@@ -92,23 +93,7 @@ def validate_uploaded_file(file: UploadFile, max_size: int = 100 * 1024 * 1024):
 def get_file_type_from_extension(filename: str) -> str:
     """Get file type from file extension."""
     ext = os.path.splitext(filename)[1].lower()
-    file_type_map = {
-        '.pdf': 'PDF',
-        '.doc': 'Word',
-        '.docx': 'Word', 
-        '.txt': 'Text',
-        '.csv': 'CSV',
-        '.xlsx': 'Excel',
-        '.xls': 'Excel',
-        '.pptx': 'PowerPoint',
-        '.ppt': 'PowerPoint',
-        '.html': 'HTML',
-        '.htm': 'HTML',
-        '.md': 'Markdown',
-        '.json': 'JSON',
-        '.xml': 'XML'
-    }
-    return file_type_map.get(ext, 'Unknown')
+    return FILE_TYPE_MAP.get(ext, 'Unknown')
 
 def format_file_size(size_bytes: int) -> str:
     """Format file size in human readable format."""
@@ -261,9 +246,9 @@ def process_document_sync(temp_file_path: str, filename: str) -> tuple:
 
     # Using RecursiveCharacterTextSplitter for better chunking
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,  # Increased to capture more complete booking info
-        chunk_overlap=200,  # Increased overlap to avoid splitting related info
-        separators=["\n\n", "\n", ". ", " ", ""]
+        chunk_size=CHUNK_SIZE,
+        chunk_overlap=CHUNK_OVERLAP,
+        separators=TEXT_SEPARATORS
     )
 
     print(f"Starting text chunking for {filename}...")
@@ -271,7 +256,7 @@ def process_document_sync(temp_file_path: str, filename: str) -> tuple:
     print(f"Text chunking complete for {filename}. Created {len(texts)} text chunks.")
 
     # Filter out very short chunks
-    texts = [text for text in texts if len(text.page_content.strip()) > 20]
+    texts = [text for text in texts if len(text.page_content.strip()) > MIN_CHUNK_LENGTH]
     
     if not texts:
         raise ValueError(f"No meaningful text chunks created from {filename}.")
@@ -566,16 +551,16 @@ Answer:"""
             
             if self.all_texts and self.qdrant_vectorstore:
                 qdrant_retriever = self.qdrant_vectorstore.as_retriever(
-                    search_kwargs={'k': 10}  # Increased from 5 to retrieve more context
+                    search_kwargs={'k': RETRIEVAL_K} 
                 )
                 
                 # Ensure BM25 is built from the currently loaded texts
                 bm25_retriever = BM25Retriever.from_documents(documents=self.all_texts)
-                bm25_retriever.k = 10  # Increased from 5
+                bm25_retriever.k = RETRIEVAL_K
                 
                 retriever = EnsembleRetriever(
                     retrievers=[bm25_retriever, qdrant_retriever],
-                    weights=[0.4, 0.6]  # Slightly favor BM25 for keyword matching
+                    weights=ENSEMBLE_WEIGHTS
                 )
             
             elif self.qdrant_vectorstore:
@@ -768,13 +753,10 @@ class SystemStatsResponse(BaseModel):
 @app.get("/")
 def read_root():
     return {
-        "message": "Enhanced Multi-File RAG System with Persistent Storage",
-        "version": "2.1.0",
-        "features": ["Persistent Storage", "Concurrent Processing", "Single File Delete", "Performance Monitoring"],
-        "storage": {
-            "type": "persistent" if doc_store.qdrant_client else "in-memory",
-            "path": QDRANT_STORAGE_PATH if doc_store.qdrant_client else "memory"
-        }
+        "message": APP_TITLE,
+        "version": APP_VERSION,
+        "features": APP_FEATURES,
+        "storage": get_storage_info()
     }
 
 @app.get("/health")
@@ -913,8 +895,8 @@ async def ingest_file(file: UploadFile = File(...)):
     
     try:
         # Create a temporary directory if it doesn't exist
-        os.makedirs("temp", exist_ok=True)
-        temp_file_path = os.path.join("temp", file.filename)
+        os.makedirs(TEMP_UPLOAD_DIR, exist_ok=True)
+        temp_file_path = os.path.join(TEMP_UPLOAD_DIR, file.filename)
 
         # Save the uploaded content to the temporary file
         with open(temp_file_path, "wb") as buffer:
@@ -1005,7 +987,7 @@ async def chat_with_docs(request: ChatRequest):
             executor,
             lambda: doc_store.qa_chain.invoke({
                 'question': request.query,
-                'chat_history': doc_store.conversation_history[-10:]
+                'chat_history': doc_store.conversation_history[-MAX_CONVERSATION_HISTORY//2:]
             })
         )
         
@@ -1041,8 +1023,8 @@ async def chat_with_docs(request: ChatRequest):
 
         # Update conversation history
         doc_store.conversation_history.append((request.query, response))
-        if len(doc_store.conversation_history) > 20:
-            doc_store.conversation_history = doc_store.conversation_history[-20:]
+        if len(doc_store.conversation_history) > MAX_CONVERSATION_HISTORY:
+            doc_store.conversation_history = doc_store.conversation_history[-MAX_CONVERSATION_HISTORY:]
 
         processing_time = time.time() - start_time
         print(f"Chat response generated in {processing_time:.2f}s")
