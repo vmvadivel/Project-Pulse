@@ -4,7 +4,9 @@ import asyncio
 import uuid
 from typing import Any, List
 from concurrent.futures import ThreadPoolExecutor
-from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
+#from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
+from fastapi import FastAPI, UploadFile, File, BackgroundTasks
+from exceptions import *
 from pydantic import BaseModel
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue
@@ -30,7 +32,8 @@ load_dotenv()
 
 # Check for the GROQ API key
 if "GROQ_API_KEY" not in os.environ:
-    raise ValueError("GROQ_API_KEY environment variable not found. Please set it.")
+    #raise ValueError("GROQ_API_KEY environment variable not found. Please set it.")
+    raise MissingAPIKey("Groq LLM") 
 
 # Configuration
 QDRANT_STORAGE_PATH = os.getenv("QDRANT_STORAGE_PATH", "./qdrant_storage")
@@ -52,6 +55,9 @@ app = FastAPI(
     version="2.1.0"
 )
 
+# === NEW: Register Custom Error Handlers ===
+register_error_handlers(app) 
+
 # Enable CORS to allow the frontend to access the backend
 app.add_middleware(
     CORSMiddleware,
@@ -60,6 +66,27 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
+def validate_uploaded_file(file: UploadFile, max_size: int = 100 * 1024 * 1024):
+    """Validate uploaded file before processing."""
+    
+    # Check file size
+    if file.size and file.size > max_size:
+        raise FileTooLarge(file.filename, file.size, max_size)
+    
+    # Check file extension
+    ext = os.path.splitext(file.filename)[1].lower()
+    supported_extensions = ['.pdf', '.doc', '.docx', '.txt', '.csv', '.xlsx', 
+                           '.xls', '.pptx', '.ppt', '.html', '.htm', '.md', 
+                           '.json', '.xml']
+    
+    if ext not in supported_extensions:
+        file_type = get_file_type_from_extension(file.filename)
+        raise UnsupportedFileType(file.filename, file_type)
+    
+    # Check if file already exists
+    if file.filename in doc_store.file_metadata:
+        raise FileAlreadyExists(file.filename)
 
 # File type detection helper
 def get_file_type_from_extension(filename: str) -> str:
@@ -266,6 +293,12 @@ class DocumentStore:
         
         # Initialize persistent storage
         self._initialize_persistent_storage()
+
+    def has_documents(self) -> bool:
+        """Check if the store has any documents based on file metadata."""
+        with self._lock:
+            # We use file_metadata as the single source of truth for ingested data
+            return len(self.file_metadata) > 0
     
     def _initialize_persistent_storage(self):
         """Initialize Qdrant with persistent storage and load existing data."""
@@ -280,7 +313,7 @@ class DocumentStore:
             self._load_complete_state()
             
             # If we have existing data, rebuild the QA chain
-            if self.file_metadata:
+            if self.has_documents():
                 print(f"Found {len(self.file_metadata)} files in persistent storage")
                 print(f"Loaded {len(self.all_documents)} documents and {len(self.all_texts)} text chunks")
                 self._rebuild_qa_chain()
@@ -354,6 +387,9 @@ class DocumentStore:
             # Ensure client is ready before attempting ingestion
             self.ensure_client_is_ready() 
             
+            if self.qdrant_client is None:
+                raise QdrantConnectionFailed(QDRANT_STORAGE_PATH, "Client initialization failed")
+
             # Add metadata to track which file each document comes from
             for doc in documents:
                 doc.metadata.update({
@@ -391,7 +427,7 @@ class DocumentStore:
                     vectors = embeddings.embed_documents(text_contents)
                     
                     if not vectors or len(vectors) != len(texts):
-                        raise Exception("Vector generation failed or vector count mismatch.")
+                        raise QdrantUpsertFailed(COLLECTION_NAME, len(texts), "Vector generation failed or vector count mismatch")
 
                     print(f"[DEBUG] Vectorization complete. Created {len(vectors)} vectors.")
 
@@ -407,6 +443,8 @@ class DocumentStore:
 
                     # Upsert the points
                     print(f"[DEBUG] Calling qdrant_client.upsert for {len(points)} points...")
+                    
+                    # The upsert call and its immediate post-processing
                     self.qdrant_client.upsert(
                         collection_name=COLLECTION_NAME,
                         points=points,
@@ -420,8 +458,15 @@ class DocumentStore:
                     print(f"Upsert Complete. Current Qdrant Count: {final_count_result.count}")
                     print(f"--------------------------------")
                     
+                except QdrantUpsertFailed:
+                    # Re-raise our custom exception for vectorization failure
+                    raise
                 except Exception as e:
+                    # Catch all other exceptions (e.g., connection errors, general failures)
+                    # The variable 'points' might not be defined if vector generation failed.
+                    points_len = len(points) if 'points' in locals() else len(texts)
                     print(f"!!! CRITICAL QDRANT ERROR during upsert: {e}")
+                    raise QdrantUpsertFailed(COLLECTION_NAME, points_len, str(e))
             
             # Save to persistent storage (JSON)
             self._save_complete_state()
@@ -436,6 +481,9 @@ class DocumentStore:
                 return False
             
             self.ensure_client_is_ready() 
+
+            if self.qdrant_client is None:
+                raise QdrantConnectionFailed(QDRANT_STORAGE_PATH, "Client not available")
 
             try:
                 # Remove from Qdrant
@@ -471,6 +519,7 @@ class DocumentStore:
                 
             except Exception as e:
                 print(f"Error removing file {filename}: {e}")
+                raise VectorStoreSyncError("delete", str(e))
                 return False
     
     def _create_qa_prompt(self):
@@ -508,15 +557,19 @@ Answer:"""
             else:
                 self.qdrant_vectorstore = None
 
-            if not self.all_texts and not self.qdrant_vectorstore:
+            # Check for empty knowledge base based on file metadata
+            if not self.has_documents():
                 self.qa_chain = None
                 return
+            
+            # Proceed to build the retriever and chain only if documents exist
             
             if self.all_texts and self.qdrant_vectorstore:
                 qdrant_retriever = self.qdrant_vectorstore.as_retriever(
                     search_kwargs={'k': 10}  # Increased from 5 to retrieve more context
                 )
                 
+                # Ensure BM25 is built from the currently loaded texts
                 bm25_retriever = BM25Retriever.from_documents(documents=self.all_texts)
                 bm25_retriever.k = 10  # Increased from 5
                 
@@ -526,13 +579,19 @@ Answer:"""
                 )
             
             elif self.qdrant_vectorstore:
+                # Fallback to Qdrant only
                 retriever = self.qdrant_vectorstore.as_retriever(
                     search_kwargs={'k': 10}  # Increased from 5
                 )
+            elif self.all_texts:
+                # Fallback to BM25 only (Qdrant client failed but in-memory texts exist)
+                retriever = BM25Retriever.from_documents(documents=self.all_texts)
+                retriever.k = 10
             else:
+                # Safety fallback: should not be reached if has_documents() is true
                 self.qa_chain = None
                 return
-            
+
             self.qa_chain = ConversationalRetrievalChain.from_llm(
                 llm=llm,
                 retriever=retriever,
@@ -765,10 +824,11 @@ def delete_specific_file(filename: str):
     success = doc_store.remove_file(filename)
     
     if not success:
-        raise HTTPException(
-            status_code=404, 
-            detail=f"File '{filename}' not found in the knowledge base"
-        )
+        #raise HTTPException(
+        #    status_code=404, 
+        #    detail=f"File '{filename}' not found in the knowledge base"
+        #)
+        raise InvalidRequest(f"File '{filename}' not found in the knowledge base")
     
     remaining_files = len(doc_store.file_metadata)
     return DeleteFileResponse(
@@ -788,7 +848,8 @@ def export_knowledge_base():
             "data": exported_data
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error exporting data: {str(e)}")
+        #raise HTTPException(status_code=500, detail=f"Error exporting data: {str(e)}")
+        raise VectorStoreSyncError("export", str(e))
 
 @app.get("/debug/qdrant")
 def debug_qdrant():
@@ -831,19 +892,22 @@ async def ingest_file(file: UploadFile = File(...)):
     
     # Validate file size (100MB limit)
     MAX_FILE_SIZE = 100 * 1024 * 1024
-    if file.size and file.size > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=413,
-            detail=f"File too large. Maximum size allowed is {format_file_size(MAX_FILE_SIZE)}"
-        )
+    validate_uploaded_file(file, MAX_FILE_SIZE)
+
+    # if file.size and file.size > MAX_FILE_SIZE:
+       # raise HTTPException(
+       #     status_code=413,
+       #     detail=f"File too large. Maximum size allowed is {format_file_size(MAX_FILE_SIZE)}"
+       # )
+    #   raise FileTooLarge(file.filename, file.size, MAX_FILE_SIZE)
     
     # Check if file already exists
-    if file.filename in doc_store.file_metadata:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"File '{file.filename}' has already been uploaded. Please use a different name or delete the existing file first."
-        )
-    
+    #if file.filename in doc_store.file_metadata:
+       # raise HTTPException(
+       #     status_code=400, 
+       #     detail=f"File '{file.filename}' has already been uploaded. Please use a different name or delete the existing file first."
+       # )
+    #   raise FileAlreadyExists(file.filename) 
     temp_file_path = None
     start_time = time.time()
     
@@ -900,10 +964,10 @@ async def ingest_file(file: UploadFile = File(...)):
 
     except ValueError as ve:
         print(f"Validation error during ingestion: {ve}")
-        raise HTTPException(status_code=400, detail=str(ve))
+        raise FileProcessingError(file.filename, str(ve))
     except Exception as e:
         print(f"Error during ingestion: {e}")
-        raise HTTPException(status_code=500, detail=f"Error during ingestion: {str(e)}")
+        raise FileProcessingError(file.filename, str(e))
     finally:
         # Cleanup the temporary file
         if temp_file_path and os.path.exists(temp_file_path):
@@ -919,15 +983,20 @@ async def chat_with_docs(request: ChatRequest):
     # Ensure client is ready
     doc_store.ensure_client_is_ready() 
     
-    # Rebuild QA chain if needed
-    if doc_store.qa_chain is None and doc_store.qdrant_client:
+    # Rebuild QA chain if needed (this also correctly sets it to None if KB is empty)
+    if doc_store.qa_chain is None and doc_store.has_documents():
         doc_store._rebuild_qa_chain()
         
+    # --- FIX: Check for documents before relying on qa_chain being None ---
+    if not doc_store.has_documents():
+        # Even if qa_chain is None, this is the clearer and faster check for an empty KB
+        raise NoDocumentsIngested()
+    
     if doc_store.qa_chain is None:
-        raise HTTPException(
-            status_code=400, 
-            detail="No documents have been ingested yet. Please upload files first using the /ingest endpoint."
-        )
+        # Fallback if has_documents is True but qa_chain failed to build
+        raise RetrievalFailed(request.query, "Knowledge base has documents but QA chain failed to initialize.")
+    # --- END FIX ---
+
 
     try:
         # Run the QA chain in thread pool
@@ -991,7 +1060,20 @@ async def chat_with_docs(request: ChatRequest):
         
     except Exception as e:
         print(f"Error during chat: {e}")
-        raise HTTPException(status_code=500, detail=f"Error during chat: {str(e)}")
+        #raise HTTPException(status_code=500, detail=f"Error during chat: {str(e)}")
+        # Try to identify specific error types
+        error_str = str(e).lower() 
+       
+        if "rate limit" in error_str or "429" in error_str:
+            raise LLMRateLimitExceeded()
+        elif "timeout" in error_str:
+            raise LLMTimeout()
+        elif "connection" in error_str or "groq" in error_str:
+            raise LLMServiceUnavailable("Groq", str(e))
+        else:
+            # Note: This is now a true retrieval failure (e.g., Qdrant is down)
+            # as the empty KB case is handled above.
+            raise RetrievalFailed(request.query, str(e))
 
 # Cleanup function for graceful shutdown
 @app.on_event("shutdown")
