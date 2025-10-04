@@ -1,11 +1,60 @@
-/* Reset and Base Styles */
+/**
+ * Standalone Admin Dashboard CSS
+ * Complete dark theme with all required styles
+ * Removed dependency with style.css
+ */
+
+/* CSS Variables - Define all colors and sizes */
+:root {
+    /* Primary Colors */
+    --primary-color: #5a67d8;
+    --primary-hover: #4c51bf;
+    --primary-light: #667eea;
+    
+    /* Background Colors */
+    --bg-primary: #1a202c;
+    --bg-secondary: #2d3748;
+    --bg-tertiary: #2a3441;
+    --bg-card: #2d3748;
+    
+    /* Text Colors */
+    --text-primary: #f7fafc;
+    --text-secondary: #cbd5e0;
+    --text-muted: #a0aec0;
+    
+    /* Status Colors */
+    --success: #48bb78;
+    --success-bg: rgba(72, 187, 120, 0.2);
+    --error: #fc8181;
+    --error-bg: rgba(252, 129, 129, 0.2);
+    --info: #90cdf4;
+    --info-bg: rgba(144, 205, 244, 0.2);
+    
+    /* Border Colors */
+    --border-color: rgba(90, 103, 216, 0.2);
+    --border-hover: rgba(90, 103, 216, 0.4);
+    
+    /* Shadows */
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.3);
+    
+    /* Transitions */
+    --transition-fast: 0.2s ease;
+    --transition-normal: 0.3s ease;
+    --transition-slow: 0.5s ease;
+}
+
+/* Reset */
 * {
+    margin: 0;
+    padding: 0;
     box-sizing: border-box;
 }
 
-/* Override body styles for admin page */
+/* Body Styles */
 body {
-    background: linear-gradient(135deg, var(--background-color) 0%, #0f1419 100%) !important;
+    background: linear-gradient(135deg, var(--bg-primary) 0%, #0f1419 100%) !important;
     min-height: 100vh !important;
     margin: 0 !important;
     padding: 1rem !important;
@@ -14,7 +63,7 @@ body {
     display: flex !important;
     justify-content: center !important;
     align-items: flex-start !important;
-    height: auto !important;
+    color: var(--text-primary);
 }
 
 /* Main Dashboard Container */
@@ -24,8 +73,8 @@ body {
     background: rgba(45, 55, 72, 0.95);
     border-radius: 20px;
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(90, 103, 216, 0.2);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-lg);
     overflow: hidden;
     animation: slideIn 0.6s ease-out;
     max-height: calc(100vh - 2rem);
@@ -46,20 +95,12 @@ body {
 
 /* Header Section */
 .admin-header {
-    background: linear-gradient(135deg, var(--primary-color) 0%, #667eea 100%);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
     padding: 2rem;
     position: relative;
     overflow: hidden;
     flex-shrink: 0;
     text-align: center;
-}
-
-/* FIX: Added missing header content class for alignment */
-.admin-header-content {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
 }
 
 .admin-header::before {
@@ -71,36 +112,6 @@ body {
     height: 100%;
     background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
     animation: shimmer 3s infinite;
-    transform: translateX(0);
-}
-
-.header-icon {
-    /* FIX: Increased size for better visibility */
-    width: 40px;
-    height: 40px;
-    /* FIX: Changed fill color to make it more visible */
-    fill: var(--text-color-light); 
-}
-.stat-icon {
-    width: 60px;
-    height: 60px;
-    margin-bottom: 0.5rem;
-}
-
-.section-icon {
-    width: 32px;
-    height: 32px;
-}
-
-.btn-icon {
-    width: 16px;
-    height: 16px;
-}
-
-.empty-state-icon {
-    width: 80px;
-    height: 80px;
-    margin-bottom: 1rem;
 }
 
 @keyframes shimmer {
@@ -108,30 +119,40 @@ body {
     100% { transform: translateX(100%); }
 }
 
-/* FIX: Added missing header text class */
+.admin-header-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    position: relative;
+    z-index: 1;
+}
+
+.header-icon {
+    width: 48px;
+    height: 48px;
+    filter: brightness(0) invert(1);
+}
+
 .header-text {
     text-align: left;
 }
 
 .admin-header h1 {
-    color: var(--text-color-light);
+    color: var(--text-primary);
     margin: 0 0 0.5rem 0;
     font-size: 2.5rem;
     font-weight: 700;
     text-shadow: 0 2px 10px rgba(0,0,0,0.3);
-    position: relative;
-    z-index: 1;
 }
 
 .admin-header p {
-    color: rgba(247, 250, 252, 0.8);
+    color: rgba(247, 250, 252, 0.9);
     margin: 0;
     font-size: 1.1rem;
-    position: relative;
-    z-index: 1;
 }
 
-/* Content Area - Scrollable */
+/* Content Area */
 .admin-content {
     padding: 2rem;
     display: grid;
@@ -141,7 +162,7 @@ body {
     flex-grow: 1;
 }
 
-/* Custom Scrollbar for Content Area */
+/* Custom Scrollbar */
 .admin-content::-webkit-scrollbar {
     width: 8px;
 }
@@ -157,24 +178,7 @@ body {
 }
 
 .admin-content::-webkit-scrollbar-thumb:hover {
-    background: #4c63d2;
-}
-
-/* Responsive Layout */
-@media (max-width: 768px) {
-    body {
-        padding: 0.5rem !important;
-    }
-    
-    .admin-content {
-        grid-template-columns: 1fr;
-        gap: 1.5rem;
-        padding: 1.5rem;
-    }
-    
-    .admin-header h1 {
-        font-size: 2rem;
-    }
+    background: var(--primary-hover);
 }
 
 /* Statistics Grid */
@@ -187,17 +191,25 @@ body {
 }
 
 .stat-card {
-    background: linear-gradient(135deg, var(--card-background) 0%, #2a3441 100%);
+    background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-tertiary) 100%);
     padding: 1.5rem;
     border-radius: 12px;
-    border: 1px solid rgba(90, 103, 216, 0.2);
+    border: 1px solid var(--border-color);
     text-align: center;
-    transition: all 0.3s ease;
+    transition: all var(--transition-normal);
 }
 
 .stat-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 15px 35px rgba(90, 103, 216, 0.15);
+    border-color: var(--border-hover);
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    margin-bottom: 0.5rem;
+    filter: invert(48%) sepia(79%) saturate(2476%) hue-rotate(220deg) brightness(85%) contrast(86%);
 }
 
 .stat-number {
@@ -208,7 +220,7 @@ body {
 }
 
 .stat-label {
-    color: var(--text-color-dark);
+    color: var(--text-muted);
     font-size: 0.9rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -216,24 +228,19 @@ body {
 
 /* Section Styles */
 .admin-section {
-    background: var(--card-background);
+    background: var(--bg-card);
     border-radius: 15px;
     padding: 1.5rem;
-    border: 1px solid rgba(90, 103, 216, 0.1);
-    transition: all 0.3s ease;
-    min-height: 25rem;
+    border: 1px solid var(--border-color);
+    transition: all var(--transition-normal);
+    min-height: 400px;
     display: flex;
     flex-direction: column;
 }
 
-/* FIX: Added missing class for file management section */
-.file-management-section {
-    /* No unique styles needed here, but the class is defined */
-}
-
 .admin-section:hover {
-    border-color: rgba(90, 103, 216, 0.3);
-    box-shadow: 0 10px 30px rgba(90, 103, 216, 0.1);
+    border-color: var(--border-hover);
+    box-shadow: var(--shadow-md);
     transform: translateY(-2px);
 }
 
@@ -247,6 +254,12 @@ body {
     gap: 0.75rem;
 }
 
+.section-icon {
+    width: 32px;
+    height: 32px;
+    filter: invert(48%) sepia(79%) saturate(2476%) hue-rotate(220deg) brightness(85%) contrast(86%);
+}
+
 .section-header {
     display: flex;
     justify-content: space-between;
@@ -258,13 +271,18 @@ body {
     margin-bottom: 0;
 }
 
-/* Upload Area */
+/* Upload Section */
+.upload-section {
+    display: flex;
+    flex-direction: column;
+}
+
 .upload-area {
-    border: 2px dashed rgba(90, 103, 216, 0.4);
+    border: 2px dashed var(--border-hover);
     border-radius: 12px;
     padding: 2rem;
     text-align: center;
-    transition: all 0.3s ease;
+    transition: all var(--transition-normal);
     cursor: pointer;
     position: relative;
     overflow: hidden;
@@ -273,6 +291,7 @@ body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    min-height: 200px;
 }
 
 .upload-area:hover {
@@ -284,12 +303,14 @@ body {
     border-color: var(--primary-color);
     background: rgba(90, 103, 216, 0.1);
     transform: scale(1.02);
+    box-shadow: 0 10px 25px rgba(90, 103, 216, 0.15);
 }
 
 .upload-icon {
-    width: 6rem;
-    height: 6rem;
+    width: 80px;
+    height: 80px;
     margin-bottom: 1rem;
+    filter: invert(48%) sepia(79%) saturate(2476%) hue-rotate(220deg) brightness(85%) contrast(86%);
     animation: pulse 2s infinite;
 }
 
@@ -305,14 +326,14 @@ body {
 }
 
 .upload-text {
-    color: var(--text-color-dark);
+    color: var(--text-secondary);
     font-size: 1.1rem;
     margin-bottom: 0.5rem;
     font-weight: 600;
 }
 
 .upload-subtext {
-    color: rgba(203, 213, 224, 0.6);
+    color: var(--text-muted);
     font-size: 0.9rem;
 }
 
@@ -333,9 +354,9 @@ body {
 
 .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, var(--primary-color), #667eea);
+    background: linear-gradient(90deg, var(--primary-color), var(--primary-light));
     width: 0%;
-    transition: width 0.3s ease;
+    transition: width var(--transition-normal);
     border-radius: 3px;
 }
 
@@ -364,21 +385,21 @@ body {
 }
 
 .loading-text {
-    color: var(--text-color-dark);
+    color: var(--text-secondary);
     font-size: 0.9rem;
 }
 
 /* Buttons */
 .btn {
-    background: linear-gradient(135deg, var(--primary-color) 0%, #667eea 100%);
-    color: var(--text-color-light);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
+    color: var(--text-primary);
     border: none;
     padding: 0.75rem 1.5rem;
     border-radius: 10px;
     cursor: pointer;
     font-size: 1rem;
     font-weight: 600;
-    transition: all 0.3s ease;
+    transition: all var(--transition-normal);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     display: flex;
@@ -393,6 +414,12 @@ body {
 
 .btn:active {
     transform: translateY(0);
+}
+
+.btn-icon {
+    width: 16px;
+    height: 16px;
+    filter: brightness(0) invert(1);
 }
 
 .btn-danger {
@@ -412,7 +439,7 @@ body {
     text-align: center;
     opacity: 0;
     transform: translateY(10px);
-    transition: all 0.3s ease;
+    transition: all var(--transition-normal);
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -425,33 +452,31 @@ body {
 }
 
 .status-success {
-    background: rgba(56, 178, 172, 0.2);
-    color: #68d391;
-    border: 1px solid rgba(56, 178, 172, 0.3);
+    background: var(--success-bg);
+    color: var(--success);
+    border: 1px solid rgba(72, 187, 120, 0.3);
 }
 
 .status-error {
-    background: rgba(229, 62, 62, 0.2);
-    color: #fc8181;
-    border: 1px solid rgba(229, 62, 62, 0.3);
+    background: var(--error-bg);
+    color: var(--error);
+    border: 1px solid rgba(252, 129, 129, 0.3);
 }
 
 .status-info {
-    background: rgba(90, 103, 216, 0.2);
-    color: #90cdf4;
-    border: 1px solid rgba(90, 103, 216, 0.3);
+    background: var(--info-bg);
+    color: var(--info);
+    border: 1px solid rgba(144, 205, 244, 0.3);
 }
 
 /* File List */
 .file-list {
-   /* max-height: 350px;*/
     overflow-y: auto;
     border-radius: 10px;
     margin-top: 1rem;
     flex-grow: 1;
 }
 
-/* Custom Scrollbar for File List */
 .file-list::-webkit-scrollbar {
     width: 6px;
 }
@@ -467,17 +492,16 @@ body {
 }
 
 .file-list::-webkit-scrollbar-thumb:hover {
-    background: #4c63d2;
+    background: var(--primary-hover);
 }
 
-/* FIX: Added missing styles for dynamically added files */
 .file-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 1rem;
-    border-bottom: 1px solid rgba(90, 103, 216, 0.1);
-    transition: all 0.3s ease;
+    border-bottom: 1px solid var(--border-color);
+    transition: all var(--transition-normal);
     animation: fadeInUp 0.5s ease-out;
 }
 
@@ -495,6 +519,7 @@ body {
 .file-item:hover {
     background: rgba(90, 103, 216, 0.05);
     border-radius: 8px;
+    transform: translateY(-1px);
 }
 
 .file-item:last-child {
@@ -506,64 +531,93 @@ body {
 }
 
 .file-name {
-    color: var(--text-color-light);
+    color: var(--text-primary);
     font-weight: 600;
-    margin-bottom: 0.25rem;
-    white-space: nowrap;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
     overflow: hidden;
-    text-overflow: ellipsis
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-type-icon {
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    filter: brightness(0) invert(1);
+    opacity: 0.7;
 }
 
 .file-details {
-    color: var(--text-color-dark);
+    color: var(--text-muted);
     font-size: 0.85rem;
     display: flex;
-    gap: 1rem;
-    flex-wrap: nowrap; /* Prevents wrapping in file details */
-    overflow: hidden; /* Prevents overflow */
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.file-details > span {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
 }
 
 .file-type-badge {
-    background: var(--primary-color);
-    color: white;
+    color: white !important;
     padding: 0.2rem 0.5rem;
     border-radius: 5px;
     font-size: 0.7rem;
     font-weight: 600;
     text-transform: uppercase;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.file-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
 }
 
 .delete-btn {
     background: rgba(229, 62, 62, 0.2);
-    color: #fc8181;
+    color: var(--error);
     border: 1px solid rgba(229, 62, 62, 0.3);
     padding: 0.5rem 0.75rem;
     border-radius: 6px;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all var(--transition-normal);
     font-size: 0.85rem;
-
-     /* FIX: Added min-width and min-height for consistent size */
-     min-width: 6rem;
-     min-height: 2.5rem;
-
-      /* FIX: Centered text within the button for perfect alignment */
+    min-width: 6rem;
+    min-height: 2.5rem;
     display: flex;
     justify-content: center;
     align-items: center;
+    gap: 0.25rem;
 }
 
 .delete-btn:hover {
     background: rgba(229, 62, 62, 0.3);
     transform: scale(1.05);
+    box-shadow: 0 2px 10px rgba(229, 62, 62, 0.2);
+}
+
+.delete-btn:active {
+    transform: scale(0.98);
+}
+
+.delete-btn-icon {
+    width: 14px;
+    height: 14px;
+    filter: brightness(0) saturate(100%) invert(61%) sepia(72%) saturate(448%) hue-rotate(314deg) brightness(103%) contrast(98%);
 }
 
 /* Empty State */
 .empty-state {
     text-align: center;
-    color: var(--text-color-dark);
+    color: var(--text-muted);
     padding: 3rem 2rem;
-    font-style: italic;
     flex-grow: 1;
     display: flex;
     flex-direction: column;
@@ -571,19 +625,19 @@ body {
     align-items: center;
 }
 
-/* Remove unused class */
-/* .empty-icon {
-    font-size: 4rem;
-    opacity: 0.5;
+.empty-state-icon {
+    width: 80px;
+    height: 80px;
     margin-bottom: 1rem;
-} */
+    filter: brightness(0) invert(1);
+    opacity: 0.3;
+}
 
-/* Enhanced Admin Dashboard CSS */
-/* Based on existing admin.css with minor improvements */
+.empty-state p {
+    font-style: italic;
+}
 
-/* All existing styles remain the same, with these additions: */
-
-/* Connection Status Indicator */
+/* Connection Status */
 #connection-status {
     position: absolute;
     top: 15px;
@@ -591,7 +645,7 @@ body {
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    transition: all 0.3s ease;
+    transition: all var(--transition-normal);
     z-index: 10;
     box-shadow: 0 0 10px rgba(0,0,0,0.3);
 }
@@ -613,216 +667,31 @@ body {
     100% { transform: scale(1.5); opacity: 0; }
 }
 
-/* Enhanced File Item Layout */
-.file-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem;
-    border-bottom: 1px solid rgba(90, 103, 216, 0.1);
-    transition: all 0.3s ease;
-    animation: fadeInUp 0.5s ease-out;
-    position: relative;
-}
-
-.file-item:hover {
-    background: rgba(90, 103, 216, 0.05);
-    border-radius: 8px;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-/* File Actions Container */
-.file-actions {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-}
-
-/* Enhanced Delete Button */
-.delete-btn {
-    background: rgba(229, 62, 62, 0.2);
-    color: #fc8181;
-    border: 1px solid rgba(229, 62, 62, 0.3);
-    padding: 0.5rem 0.75rem;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-size: 0.85rem;
-    min-width: 6rem;
-    min-height: 2.5rem;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 0.25rem;
-    position: relative;
-    overflow: hidden;
-}
-
-.delete-btn:hover {
-    background: rgba(229, 62, 62, 0.3);
-    transform: scale(1.05);
-    box-shadow: 0 2px 10px rgba(229, 62, 62, 0.2);
-}
-
-.delete-btn:active {
-    transform: scale(0.98);
-}
-
-/* File Type Icon in File List */
-.file-type-icon {
-    width: 16px;
-    height: 16px;
-    margin-right: 8px;
-    opacity: 0.8;
-}
-
-/* Enhanced File Details with Better Spacing */
-.file-details {
-    color: var(--text-color-dark);
-    font-size: 0.85rem;
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    align-items: center;
-    margin-top: 0.25rem;
-}
-
-.file-details > span {
-    display: inline-flex;
-    align-items: center;
-    white-space: nowrap;
-    padding: 2px 0;
-}
-
-/* Enhanced File Type Badge with Colors */
-.file-type-badge {
-    color: white !important;
-    padding: 0.2rem 0.5rem;
-    border-radius: 5px;
-    font-size: 0.7rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    border: none;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-}
-
-/* Loading States */
-.file-item.loading {
-    opacity: 0.6;
-    pointer-events: none;
-}
-
-.file-item.loading::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(90, 103, 216, 0.1);
-    animation: loading-pulse 1.5s infinite;
-}
-
-@keyframes loading-pulse {
-    0%, 100% { opacity: 0.1; }
-    50% { opacity: 0.3; }
-}
-
-/* Enhanced Status Messages */
-.status-message {
-    padding: 1rem;
-    border-radius: 10px;
-    margin-top: 1rem;
-    font-weight: 500;
-    text-align: left;
-    opacity: 0;
-    transform: translateY(10px);
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    position: relative;
-    overflow: hidden;
-}
-
-.status-message::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 4px;
-    background: currentColor;
-    opacity: 0.8;
-}
-
-/* Enhanced Upload Area with Better Visual Feedback */
-.upload-area {
-    border: 2px dashed rgba(90, 103, 216, 0.4);
-    border-radius: 12px;
-    padding: 2rem;
-    text-align: center;
-    transition: all 0.3s ease;
-    cursor: pointer;
-    position: relative;
-    overflow: hidden;
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    min-height: 200px;
-}
-
-.upload-area.drag-over {
-    border-color: var(--primary-color);
-    background: rgba(90, 103, 216, 0.1);
-    transform: scale(1.02);
-    box-shadow: 0 10px 25px rgba(90, 103, 216, 0.15);
-}
-
-.upload-area.drag-over .upload-icon {
-    transform: scale(1.1);
-    animation: bounce 0.6s ease-in-out;
-}
-
-@keyframes bounce {
-    0%, 20%, 60%, 100% { transform: translateY(0) scale(1.1); }
-    40% { transform: translateY(-10px) scale(1.1); }
-    80% { transform: translateY(-5px) scale(1.1); }
-}
-
-/* Performance Indicators */
-.performance-stats {
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
-    font-size: 0.7rem;
-    color: var(--text-color-muted);
-    opacity: 0.8;
-}
-
-/* Tooltip Styles */
-[title] {
-    position: relative;
-    /*cursor: help;*/
-}
-
-/* Enhanced Animations */
-@keyframes fadeInUp {
-    from { 
-        opacity: 0; 
-        transform: translateY(20px); 
-    }
-    to { 
-        opacity: 1; 
-        transform: translateY(0); 
-    }
-}
-
-/* Mobile Responsiveness Improvements */
+/* Responsive Design */
 @media (max-width: 768px) {
+    body {
+        padding: 0.5rem !important;
+    }
+    
+    .admin-content {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+        padding: 1.5rem;
+    }
+    
+    .admin-header h1 {
+        font-size: 2rem;
+    }
+    
+    .admin-header-content {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .header-text {
+        text-align: center;
+    }
+    
     .file-details {
         flex-direction: column;
         align-items: flex-start;
@@ -831,28 +700,10 @@ body {
     
     .file-actions {
         margin-top: 0.5rem;
-        align-self: flex-end;
     }
     
     .file-item {
         flex-direction: column;
         align-items: stretch;
-        padding: 1rem 0.75rem;
-    }
-    
-    #connection-status {
-        top: 10px;
-        right: 10px;
-    }
-}
-
-/* Dark Mode Enhancements */
-@media (prefers-color-scheme: dark) {
-    .file-item:hover {
-        background: rgba(90, 103, 216, 0.08);
-    }
-    
-    .delete-btn:hover {
-        background: rgba(229, 62, 62, 0.25);
     }
 }
