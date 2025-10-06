@@ -6,7 +6,8 @@
 
 class AdminDashboard {
     constructor() {
-        this.apiBase = 'http://127.0.0.1:8000';
+        //this.apiBase = 'http://127.0.0.1:8000';
+        this.apiBase = '/api';
         this.maxRetries = 3;
         this.retryDelay = 1000;
         

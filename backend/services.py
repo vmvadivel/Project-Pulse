@@ -28,7 +28,8 @@ from qdrant_client.http.models import (
     PointStruct, 
     Filter, 
     FieldCondition, 
-    MatchValue
+    MatchValue,
+    OptimizersConfig
 )
 
 from config import (
@@ -90,7 +91,14 @@ def ensure_collection_exists(
             print(f"Creating new collection: {collection_name}")
             client.create_collection(
                 collection_name=collection_name,
-                vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE)
+                vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
+                # FIX: Explicitly pass default OptimizersConfig to satisfy Pydantic v2 strictness
+                optimizers_config=OptimizersConfig(
+                    deleted_threshold=0.2,
+                    vacuum_min_vector_number=100,
+                    default_segment_number=0,
+                    flush_interval_sec=5
+                )
             )
             print(f"Collection '{collection_name}' created successfully")
         else:
@@ -250,6 +258,9 @@ def process_document_sync(temp_file_path: str, filename: str) -> tuple:
         return documents, texts, processing_time
         
     except Exception as e:
+        import traceback
+        print(f"DETAILED ERROR for {filename}:")
+        print(traceback.format_exc())
         raise FileProcessingError(filename, str(e))
 
 

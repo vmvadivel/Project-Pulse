@@ -1,7 +1,8 @@
 
 class ChatInterface {
     constructor() {
-        this.apiBase = 'http://127.0.0.1:8000';
+        //this.apiBase = 'http://127.0.0.1:8000';
+        this.apiBase = '/api';
         this.settings = {
             theme: 'light',
             fontSize: 16,
