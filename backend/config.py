@@ -10,6 +10,19 @@ from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
 from exceptions import MissingAPIKey
 
+# Attempt to import Ollama, required for local LLM support
+try:
+    from langchain_community.llms import Ollama
+    from requests.exceptions import ConnectionError
+    OLLAMA_AVAILABLE = True
+except ImportError:
+    OLLAMA_AVAILABLE = False
+    print("WARNING: Ollama is not installed or dependencies are missing. Only Groq will be available.")
+except ConnectionError:
+    # This might trigger later, but useful to catch here if possible
+    OLLAMA_AVAILABLE = False
+    print("WARNING: Cannot connect to Ollama. Falling back to Groq.")
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -18,11 +31,19 @@ load_dotenv()
 # ============================================================================
 
 # Check for required API keys
-if "GROQ_API_KEY" not in os.environ:
-    raise MissingAPIKey("Groq LLM")
+#if "GROQ_API_KEY" not in os.environ:
+#    raise MissingAPIKey("Groq LLM")
 
-GROQ_API_KEY = os.environ["GROQ_API_KEY"]
+#GROQ_API_KEY = os.environ["GROQ_API_KEY"]
 
+# General Configuration
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama").lower() # Default to ollama
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+# Check for required API keys based on provider priority
+if LLM_PROVIDER == "groq" or (LLM_PROVIDER == "ollama" and not OLLAMA_AVAILABLE):
+    if not GROQ_API_KEY:
+        raise MissingAPIKey("Groq LLM")
 
 # ============================================================================
 # Storage Configuration
@@ -100,6 +121,11 @@ MAX_CONVERSATION_HISTORY = 20
 LLM_MODEL_NAME = "llama-3.3-70b-versatile"
 LLM_TEMPERATURE = 0
 
+# Ollama Settings
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:1b")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+# NOTE: Using host.docker.internal to access Windows host from Docker container
+
 # Embedding model
 EMBEDDING_MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
 EMBEDDING_VECTOR_SIZE = 768
@@ -113,11 +139,55 @@ MAX_WORKERS = 4
 # ============================================================================
 
 # Initialize Groq LLM
-llm = ChatGroq(
-    temperature=LLM_TEMPERATURE, 
-    model_name=LLM_MODEL_NAME,
-    api_key=GROQ_API_KEY
-)
+#llm = ChatGroq(
+#    temperature=LLM_TEMPERATURE, 
+#    model_name=LLM_MODEL_NAME,
+#    api_key=GROQ_API_KEY
+#)
+
+# ============================================================================
+# Model Initialization
+# ============================================================================
+
+def initialize_llm():
+    """Initializes the LLM with Ollama as primary and Groq as fallback."""
+    global LLM_PROVIDER
+    
+    # 1. Attempt Ollama (Primary)
+    if LLM_PROVIDER == "ollama" and OLLAMA_AVAILABLE:
+        try:
+            llm_instance = Ollama(
+                model=OLLAMA_MODEL,
+                base_url=OLLAMA_BASE_URL,
+                temperature=LLM_TEMPERATURE
+            )
+            # A quick test call to ensure the service is actually running
+            # Ollama needs to be accessible from the Docker container
+            llm_instance.invoke("test connectivity", config={"timeout": 5}) 
+            
+            print(f"INFO: Successfully initialized Ollama LLM: {OLLAMA_MODEL} at {OLLAMA_BASE_URL}")
+            return llm_instance
+        except (ConnectionError, Exception) as e:
+            print(f"WARNING: Failed to connect to Ollama at {OLLAMA_BASE_URL} ({type(e).__name__}). Falling back to Groq.")
+            # Fall through to Groq initialization
+
+    # 2. Initialize Groq (Secondary / Explicit choice)
+    if GROQ_API_KEY:
+        llm_instance = ChatGroq(
+            temperature=LLM_TEMPERATURE,
+            model_name=LLM_MODEL_NAME,
+            api_key=GROQ_API_KEY
+        )
+        # Update the provider variable for runtime tracking
+        LLM_PROVIDER = "groq"
+        print(f"INFO: Using Groq LLM (Fallback or Explicit): {LLM_MODEL_NAME}")
+        return llm_instance
+    else:
+        # If Ollama failed and Groq key is missing, this is a fatal configuration error
+        raise MissingAPIKey("Groq LLM (Ollama fallback failed or not selected)")
+
+# Initialize LLM (Must be called after all variables are set)
+llm = initialize_llm()
 
 # Initialize HuggingFace embeddings
 embeddings = HuggingFaceEmbeddings(
@@ -141,7 +211,8 @@ APP_FEATURES = [
     "Concurrent Processing", 
     "Single File Delete",
     "Performance Monitoring",
-    "Custom Error Handling"
+    "Custom Error Handling",
+    "Ollama (Local LLM) Support" # Added new feature
 ]
 
 
@@ -163,5 +234,8 @@ def get_app_info() -> dict:
     return {
         "title": APP_TITLE,
         "version": APP_VERSION,
-        "features": APP_FEATURES
+        "features": APP_FEATURES,
+        "llm_provider": LLM_PROVIDER, # Use the potentially updated global variable 
+        "llm_model": OLLAMA_MODEL if LLM_PROVIDER == "ollama" else LLM_MODEL_NAME, 
+        "embedding_model": EMBEDDING_MODEL_NAME
     }
