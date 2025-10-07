@@ -25,8 +25,14 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements from backend folder
 COPY backend/requirements-frozen.txt .
 
+RUN pip install torch==2.8.0 torchvision==0.23.0 --index-url https://download.pytorch.org/whl/cpu
+
 # Install Python dependencies (torch will be installed as dependency)
-RUN pip install --no-cache-dir -r requirements-frozen.txt
+#RUN pip install -r requirements-frozen.txt
+
+RUN cat requirements-frozen.txt \
+    | grep -v -e '^torch==' -e '^torchvision==' -e '^nvidia_' \
+    | pip install -r /dev/stdin
 
 # Copy application code from backend folder
 COPY backend/main.py .

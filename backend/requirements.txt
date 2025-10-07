@@ -5,7 +5,7 @@ python-dotenv==1.0.1
 
 # LangChain Core
 langchain==0.3.7
-langchain-community==0.3.5
+langchain-community==0.3.5  
 langchain-text-splitters==0.3.2
 
 # Vector Store
