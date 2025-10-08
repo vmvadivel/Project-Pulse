@@ -122,7 +122,7 @@ LLM_MODEL_NAME = "llama-3.3-70b-versatile"
 LLM_TEMPERATURE = 0
 
 # Ollama Settings
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:1b")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 # NOTE: Using host.docker.internal to access Windows host from Docker container
 
