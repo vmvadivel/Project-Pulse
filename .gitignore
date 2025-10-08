@@ -29,6 +29,7 @@ qdrant_storage/
 *.log
 logs/
 
+
 =
 \[internal]
 reading
