@@ -5,7 +5,7 @@ python-dotenv==1.0.1
 
 # LangChain Core
 langchain==0.3.7
-langchain-community==0.3.5
+langchain-community==0.3.5  
 langchain-text-splitters==0.3.2
 
 # Vector Store
@@ -15,9 +15,18 @@ langchain-qdrant==0.1.4
 # LLM Providers
 langchain-groq==0.2.1
 
-# Embeddings
-langchain-huggingface==0.1.2
+# PyTorch (CPU-only, pinned version)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1+cpu
+torchvision==0.20.1+cpu
+torchaudio==2.5.1+cpu
+
+# Embeddings (after torch)
+transformers==4.46.3
 sentence-transformers==3.3.1
+
+# HuggingFace integration
+langchain-huggingface==0.1.2
 
 # Document Processing
 unstructured[all-docs]==0.16.9
@@ -25,6 +34,14 @@ langchain-unstructured==0.1.4
 
 # Data Models
 pydantic==2.10.3
+
+# BM25 Retriever
+rank-bm25==0.2.2
+
+# Testing (for running tests in container)
+pytest==7.4.3
+pytest-cov==4.1.0
+requests==2.31.0
 
 
 # pip install -r requirements.txt
