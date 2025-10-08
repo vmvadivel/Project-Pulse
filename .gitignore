@@ -28,3 +28,10 @@ qdrant_storage/
 # Log files
 *.log
 logs/
+
+=
+\[internal]
+reading
+resolve
+transferring
+\[
