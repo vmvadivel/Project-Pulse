@@ -1,6 +1,7 @@
 """
 Configuration management for RAG System.
 Centralizes all settings, environment variables, and model initialization.
+includes Cross-Encoder Reranking and Contextual Enrichment configuration.
 """
 
 import os
@@ -133,6 +134,56 @@ EMBEDDING_VECTOR_SIZE = 768
 # Thread pool for CPU-intensive operations
 MAX_WORKERS = 4
 
+# ============================================================================
+# Reranking Configuration
+# ============================================================================
+
+# Enable/disable reranking
+ENABLE_RERANKING = os.getenv("ENABLE_RERANKING", "true").lower() == "true"
+
+# Reranker model
+RERANKER_MODEL_NAME = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
+# Number of documents to retrieve before reranking
+RETRIEVAL_K_BEFORE_RERANK = 20  # Cast wider net
+
+# Number of documents to keep after reranking
+RETRIEVAL_K_AFTER_RERANK = 7    # Keep top results
+
+# Minimum relevance score to include (0.0 to 1.0)
+MIN_RELEVANCE_SCORE = 0.3  # Filter out irrelevant chunks
+
+# ============================================================================
+# Contextual Enrichment Configuration
+# ============================================================================
+
+# Enable contextual chunk enrichment
+ENABLE_CONTEXTUAL_ENRICHMENT = os.getenv("ENABLE_CONTEXTUAL_ENRICHMENT", "true").lower() == "true"
+
+# Number of characters to include as context (before and after)
+CONTEXT_WINDOW_CHARS = 200
+
+# Whether to include document summary in each chunk
+INCLUDE_DOC_SUMMARY = True
+
+# ============================================================================
+# Initialize Reranker (if enabled)
+# ============================================================================
+
+reranker = None
+if ENABLE_RERANKING:
+    try:
+        from sentence_transformers import CrossEncoder
+        reranker = CrossEncoder(RERANKER_MODEL_NAME)
+        print(f"INFO: Reranker initialized: {RERANKER_MODEL_NAME}")
+    except Exception as e:
+        print(f"WARNING: Failed to initialize reranker: {e}")
+        print("INFO: Continuing without reranking")
+        ENABLE_RERANKING = False
+        reranker = None
+
+# Thread pool for CPU-intensive operations
+executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
 # ============================================================================
 # Initialize Models and Resources
@@ -204,7 +255,7 @@ executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
 APP_TITLE = "Enhanced Multi-File RAG System with Persistence"
 APP_DESCRIPTION = "High-performance RAG system with persistent storage and concurrent user support"
-APP_VERSION = "2.1.0"
+APP_VERSION = "2.2.0"
 
 APP_FEATURES = [
     "Persistent Storage",
@@ -212,9 +263,13 @@ APP_FEATURES = [
     "Single File Delete",
     "Performance Monitoring",
     "Custom Error Handling",
-    "Ollama (Local LLM) Support" # Added new feature
+    "Ollama (Local LLM) Support",
+    "Cross-Encoder Reranking" if ENABLE_RERANKING else None,
+    "Contextual Chunk Enrichment" if ENABLE_CONTEXTUAL_ENRICHMENT else None
 ]
 
+# Remove None values from features
+APP_FEATURES = [f for f in APP_FEATURES if f is not None]
 
 # ============================================================================
 # Helper Functions
@@ -235,7 +290,10 @@ def get_app_info() -> dict:
         "title": APP_TITLE,
         "version": APP_VERSION,
         "features": APP_FEATURES,
-        "llm_provider": LLM_PROVIDER, # Use the potentially updated global variable 
-        "llm_model": OLLAMA_MODEL if LLM_PROVIDER == "ollama" else LLM_MODEL_NAME, 
-        "embedding_model": EMBEDDING_MODEL_NAME
+        "llm_provider": LLM_PROVIDER,
+        "llm_model": OLLAMA_MODEL if LLM_PROVIDER == "ollama" else LLM_MODEL_NAME,
+        "embedding_model": EMBEDDING_MODEL_NAME,
+        "reranking_enabled": ENABLE_RERANKING,
+        "reranker_model": RERANKER_MODEL_NAME if ENABLE_RERANKING else None,
+        "contextual_enrichment_enabled": ENABLE_CONTEXTUAL_ENRICHMENT
     }

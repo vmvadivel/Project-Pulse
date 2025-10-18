@@ -48,6 +48,7 @@ class IngestResponse(BaseModel):
     file_type: str
     file_size_formatted: str
     processing_time: str
+    contextual_enrichment_applied: bool
 
 class FileListResponse(BaseModel):
     files: List[dict]
@@ -68,6 +69,8 @@ class SystemStatsResponse(BaseModel):
     avg_processing_time: str
     storage_type: str
     storage_path: str
+    reranking_enabled: bool
+    contextual_enrichment_enabled: bool
 
 @app.get("/")
 def read_root():
@@ -75,7 +78,10 @@ def read_root():
         "message": APP_TITLE,
         "version": APP_VERSION,
         "features": APP_FEATURES,
-        "storage": get_storage_info()
+        "storage": get_storage_info(),
+        "llm_provider": LLM_PROVIDER,
+        "reranking_enabled": ENABLE_RERANKING,
+        "contextual_enrichment_enabled": ENABLE_CONTEXTUAL_ENRICHMENT
     }
 
 @app.get("/health")
@@ -85,7 +91,9 @@ def health_check():
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "stats": stats
+        "stats": stats,
+        "reranking_enabled": ENABLE_RERANKING,
+        "contextual_enrichment_enabled": ENABLE_CONTEXTUAL_ENRICHMENT
     }
 
 @app.get("/stats", response_model=SystemStatsResponse)
@@ -99,7 +107,9 @@ def get_system_stats():
         total_size_formatted=format_file_size(stats['total_size']),
         avg_processing_time=f"{stats['avg_processing_time']:.2f}s",
         storage_type=stats['storage_type'],
-        storage_path=stats['storage_path']
+        storage_path=stats['storage_path'],
+        reranking_enabled=ENABLE_RERANKING,
+        contextual_enrichment_enabled=ENABLE_CONTEXTUAL_ENRICHMENT
     )
 
 @app.get("/files", response_model=FileListResponse)
@@ -145,7 +155,6 @@ def export_knowledge_base():
             "data": exported_data
         }
     except Exception as e:
-        #raise HTTPException(status_code=500, detail=f"Error exporting data: {str(e)}")
         raise VectorStoreSyncError("export", str(e))
 
 @app.get("/debug/qdrant")
@@ -165,7 +174,9 @@ def debug_qdrant():
                     "documents": len(doc_store.all_documents),
                     "text_chunks": len(doc_store.all_texts),
                     "files": len(doc_store.file_metadata)
-                }
+                },
+                "reranking_enabled": ENABLE_RERANKING,
+                "contextual_enrichment_enabled": ENABLE_CONTEXTUAL_ENRICHMENT
             }
         else:
             return {
@@ -184,6 +195,7 @@ def debug_qdrant():
 async def ingest_file(file: UploadFile = File(...)):
     """
     Ingests a file and adds it to the existing vector store with enhanced performance and persistence.
+    Now includes contextual enrichment.
     """
     print(f"Received file for ingestion: {file.filename} ({format_file_size(file.size or 0)})")
     
@@ -208,7 +220,7 @@ async def ingest_file(file: UploadFile = File(...)):
         
         print(f"File details - Type: {file_type}, Size: {format_file_size(file_size)}")
 
-        # Process document in thread pool
+        # Process document in thread pool (includes contextual enrichment)
         loop = asyncio.get_event_loop()
         documents, texts, processing_time = await loop.run_in_executor(
             executor, 
@@ -240,7 +252,8 @@ async def ingest_file(file: UploadFile = File(...)):
             total_chunks=len(doc_store.all_texts),
             file_type=file_type,
             file_size_formatted=format_file_size(file_size),
-            processing_time=f"{total_time:.2f}s"
+            processing_time=f"{total_time:.2f}s",
+            contextual_enrichment_applied=ENABLE_CONTEXTUAL_ENRICHMENT
         )
 
     except ValueError as ve:
@@ -258,6 +271,7 @@ async def ingest_file(file: UploadFile = File(...)):
 async def chat_with_docs(request: ChatRequest):
     """
     Answers a user's query based on all ingested documents.
+    Now includes reranking for improved relevance.
     """
     start_time = time.time()
     
@@ -305,16 +319,24 @@ async def chat_with_docs(request: ChatRequest):
                 file_types.append(file_type)
             
             # Add detailed source info for debugging
+            # Use original content if available (before enrichment)
+            content_preview = doc.metadata.get('original_content', doc.page_content)
             source_details.append({
                 'file': source_file,
                 'type': file_type,
-                'content_preview': doc.page_content[:200] + '...' if len(doc.page_content) > 200 else doc.page_content
+                'chunk_position': doc.metadata.get('chunk_position', 'N/A'),
+                'enriched': doc.metadata.get('enriched', False),
+                'rerank_score': doc.metadata.get('rerank_score'),
+                'rerank_position': doc.metadata.get('rerank_position'),
+                'content_preview': content_preview[:200] + '...' if len(content_preview) > 200 else content_preview
             })
 
         # Log retrieved sources for debugging
         print(f"\n=== RETRIEVAL DEBUG ===")
         print(f"Query: {request.query}")
         print(f"Retrieved {len(source_docs)} chunks from {len(source_files)} files: {source_files}")
+        if ENABLE_RERANKING and source_docs:
+            print(f"Reranking applied: Top score = {source_docs[0].metadata.get('rerank_score', 'N/A')}")
         print(f"======================\n")
 
         # Update conversation history
@@ -330,10 +352,20 @@ async def chat_with_docs(request: ChatRequest):
             "source_files": source_files,
             "file_types": file_types,
             "num_sources": len(source_docs),
-            "source_details": source_details,  # Added for debugging
+            "source_details": source_details,
             "total_files_in_knowledge_base": len(doc_store.file_metadata),
             "response_time": f"{processing_time:.2f}s",
-            "storage_type": "persistent" if doc_store.qdrant_client else "in-memory"
+            "storage_type": "persistent" if doc_store.qdrant_client else "in-memory",
+            "reranking_enabled": ENABLE_RERANKING,
+            "contextual_enrichment_enabled": ENABLE_CONTEXTUAL_ENRICHMENT,
+            "reranking_scores": [
+                {
+                    'file': doc.metadata.get('source_file'),
+                    'score': doc.metadata.get('rerank_score'),
+                    'position': doc.metadata.get('rerank_position')
+                }
+                for doc in source_docs if 'rerank_score' in doc.metadata
+            ] if ENABLE_RERANKING else []
         }
         
     except Exception as e:

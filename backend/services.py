@@ -1,6 +1,7 @@
 """
 Business logic and services for RAG System.
 Contains DocumentStore class, document processing, and QA chain management.
+Now includes Cross-Encoder Reranking and Contextual Chunk Enrichment.
 """
 
 import os
@@ -14,6 +15,8 @@ from typing import List, Dict, Any
 from datetime import datetime
 
 from langchain.schema import Document
+from langchain.schema.retriever import BaseRetriever
+from langchain.callbacks.manager import CallbackManagerForRetrieverRun
 from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain
 from langchain_community.document_loaders import UnstructuredPDFLoader, UnstructuredFileLoader
@@ -43,8 +46,17 @@ from config import (
     ENSEMBLE_WEIGHTS,
     MAX_CONVERSATION_HISTORY,
     EMBEDDING_VECTOR_SIZE,
+    ENABLE_RERANKING,
+    RERANKER_MODEL_NAME,
+    RETRIEVAL_K_BEFORE_RERANK,
+    RETRIEVAL_K_AFTER_RERANK,
+    MIN_RELEVANCE_SCORE,
+    ENABLE_CONTEXTUAL_ENRICHMENT,
+    CONTEXT_WINDOW_CHARS,
+    INCLUDE_DOC_SUMMARY,
     llm,
-    embeddings
+    embeddings,
+    reranker
 )
 from exceptions import (
     QdrantConnectionFailed,
@@ -200,12 +212,251 @@ def load_metadata_from_file() -> dict:
 
 
 # ============================================================================
+# Contextual Chunk Enrichment Functions
+# ============================================================================
+
+def extract_document_metadata(filename: str, documents: List[Document]) -> dict:
+    """
+    Extract metadata from the full document for enrichment.
+    
+    Args:
+        filename: Name of the source file
+        documents: List of loaded documents
+        
+    Returns:
+        Dictionary with document-level metadata
+    """
+    # Generate document summary (first 500 chars)
+    full_text = " ".join([doc.page_content for doc in documents])
+    doc_summary = full_text[:500].strip() + "..." if len(full_text) > 500 else full_text
+    
+    # Extract potential title (first meaningful line)
+    lines = full_text.split('\n')
+    potential_title = None
+    for line in lines[:10]:  # Check first 10 lines
+        if line.strip() and len(line.strip()) > 10:
+            potential_title = line.strip()[:100]
+            break
+    
+    return {
+        'filename': filename,
+        'title': potential_title or filename,
+        'summary': doc_summary,
+        'total_length': len(full_text),
+        'num_source_docs': len(documents)
+    }
+
+
+def enrich_chunk_with_context(
+    chunk: Document,
+    all_chunks: List[Document],
+    chunk_index: int,
+    doc_metadata: dict
+) -> Document:
+    """
+    Enrich a text chunk with surrounding context and document metadata.
+    
+    Args:
+        chunk: The chunk to enrich
+        all_chunks: All chunks from the document
+        chunk_index: Index of current chunk
+        doc_metadata: Document-level metadata
+        
+    Returns:
+        Enriched Document with added context
+    """
+    enriched_content = []
+    
+    # Add document context header
+    enriched_content.append(f"[Document: {doc_metadata['filename']}]")
+    
+    if INCLUDE_DOC_SUMMARY and chunk_index == 0:
+        enriched_content.append(f"[Document Summary: {doc_metadata['summary']}]")
+    
+    enriched_content.append(f"[Chunk {chunk_index + 1} of {len(all_chunks)}]")
+    
+    # Add preceding context (if available)
+    if chunk_index > 0:
+        prev_chunk = all_chunks[chunk_index - 1]
+        prev_context = prev_chunk.page_content[-CONTEXT_WINDOW_CHARS:].strip()
+        if prev_context:
+            enriched_content.append(f"[Previous Context: ...{prev_context}]")
+    
+    # Add the main chunk content
+    enriched_content.append("")
+    enriched_content.append(chunk.page_content)
+    enriched_content.append("")
+    
+    # Add following context (if available)
+    if chunk_index < len(all_chunks) - 1:
+        next_chunk = all_chunks[chunk_index + 1]
+        next_context = next_chunk.page_content[:CONTEXT_WINDOW_CHARS].strip()
+        if next_context:
+            enriched_content.append(f"[Next Context: {next_context}...]")
+    
+    # Create enriched document
+    enriched_doc = Document(
+        page_content="\n".join(enriched_content),
+        metadata={
+            **chunk.metadata,
+            'original_content': chunk.page_content,  # Keep original for reference
+            'enriched': True,
+            'doc_title': doc_metadata['title'],
+            'chunk_position': f"{chunk_index + 1}/{len(all_chunks)}"
+        }
+    )
+    
+    return enriched_doc
+
+
+def apply_contextual_enrichment(
+    documents: List[Document],
+    texts: List[Document],
+    filename: str
+) -> List[Document]:
+    """
+    Apply contextual enrichment to all text chunks.
+    
+    Args:
+        documents: Original loaded documents
+        texts: Text chunks to enrich
+        filename: Source filename
+        
+    Returns:
+        List of enriched text chunks
+    """
+    if not ENABLE_CONTEXTUAL_ENRICHMENT:
+        return texts
+    
+    print(f"[ENRICHMENT] Applying contextual enrichment to {len(texts)} chunks from {filename}")
+    
+    # Extract document-level metadata
+    doc_metadata = extract_document_metadata(filename, documents)
+    
+    # Enrich each chunk
+    enriched_texts = []
+    for i, chunk in enumerate(texts):
+        enriched_chunk = enrich_chunk_with_context(chunk, texts, i, doc_metadata)
+        enriched_texts.append(enriched_chunk)
+    
+    print(f"[ENRICHMENT] Enrichment complete. Sample enriched chunk length: {len(enriched_texts[0].page_content) if enriched_texts else 0} chars")
+    
+    return enriched_texts
+
+
+# ============================================================================
+# Reranking Functions
+# ============================================================================
+
+def rerank_documents(query: str, documents: List[Document]) -> List[Document]:
+    """
+    Rerank retrieved documents using cross-encoder model.
+    
+    Args:
+        query: The search query
+        documents: Retrieved documents to rerank
+        
+    Returns:
+        Reranked and filtered documents
+    """
+    if not ENABLE_RERANKING or reranker is None or not documents:
+        return documents[:RETRIEVAL_K_AFTER_RERANK]
+    
+    print(f"[RERANKING] Reranking {len(documents)} documents for query: '{query[:50]}...'")
+    
+    try:
+        # Prepare query-document pairs for reranking
+        # Use original content if available (before enrichment)
+        pairs = [
+            [query, doc.metadata.get('original_content', doc.page_content)] 
+            for doc in documents
+        ]
+        
+        # Get relevance scores
+        scores = reranker.predict(pairs)
+        
+        # Combine documents with scores
+        doc_scores = list(zip(documents, scores))
+        
+        # Sort by score (descending)
+        doc_scores.sort(key=lambda x: x[1], reverse=True)
+        
+        # Filter by minimum relevance score
+        filtered_docs = [
+            (doc, score) for doc, score in doc_scores 
+            if score >= MIN_RELEVANCE_SCORE
+        ]
+        
+        print(f"[RERANKING] Filtered to {len(filtered_docs)} documents above threshold {MIN_RELEVANCE_SCORE}")
+        
+        if filtered_docs:
+            print(f"[RERANKING] Score range: {filtered_docs[0][1]:.3f} (best) to {filtered_docs[-1][1]:.3f} (worst)")
+        
+        # Take top K after reranking
+        reranked_docs = [doc for doc, score in filtered_docs[:RETRIEVAL_K_AFTER_RERANK]]
+        
+        # Add reranking score to metadata for debugging
+        for i, (doc, score) in enumerate(filtered_docs[:RETRIEVAL_K_AFTER_RERANK]):
+            reranked_docs[i].metadata['rerank_score'] = float(score)
+            reranked_docs[i].metadata['rerank_position'] = i + 1
+        
+        return reranked_docs
+        
+    except Exception as e:
+        print(f"[RERANKING] Error during reranking: {e}")
+        return documents[:RETRIEVAL_K_AFTER_RERANK]
+
+
+# ============================================================================
+# Custom Reranking Retriever
+# ============================================================================
+
+# Replace the RerankingRetriever class in services.py (around line 300)
+
+class RerankingRetriever(BaseRetriever):
+    """
+    Custom retriever that applies cross-encoder reranking to results.
+    """
+    
+    base_retriever: BaseRetriever
+    
+    class Config:
+        arbitrary_types_allowed = True
+    
+    def _get_relevant_documents(
+        self, 
+        query: str, 
+        *, 
+        run_manager: CallbackManagerForRetrieverRun = None
+    ) -> List[Document]:
+        """Get documents relevant to query, with reranking."""
+        # Get initial documents from base retriever
+        # Don't pass run_manager if it's causing issues
+        docs = self.base_retriever.get_relevant_documents(query)
+        
+        # Apply reranking
+        reranked_docs = rerank_documents(query, docs)
+        
+        return reranked_docs
+    
+    async def _aget_relevant_documents(
+        self, 
+        query: str, 
+        *, 
+        run_manager: CallbackManagerForRetrieverRun = None
+    ) -> List[Document]:
+        """Async version - falls back to sync for now."""
+        return self._get_relevant_documents(query, run_manager=run_manager)
+
+
+# ============================================================================
 # Document Processing
 # ============================================================================
 
 def process_document_sync(temp_file_path: str, filename: str) -> tuple:
     """
     Synchronous document processing function to run in thread pool.
+    Now includes contextual enrichment.
     
     Args:
         temp_file_path: Path to temporary file
@@ -253,6 +504,9 @@ def process_document_sync(temp_file_path: str, filename: str) -> tuple:
         
         if not texts:
             raise ValueError(f"No meaningful text chunks created from {filename}.")
+        
+        # Apply contextual enrichment
+        texts = apply_contextual_enrichment(documents, texts, filename)
 
         processing_time = time.time() - start_time
         return documents, texts, processing_time
@@ -272,6 +526,7 @@ class DocumentStore:
     """
     Manages document storage, vector store, and QA chain.
     Thread-safe with persistent storage support.
+    Now includes reranking and contextual enrichment.
     """
     
     def __init__(self):
@@ -525,7 +780,7 @@ Answer:"""
         return PromptTemplate(template=template, input_variables=["context", "question"])
     
     def _rebuild_qa_chain(self):
-        """Rebuild the QA chain with all documents"""
+        """Rebuild the QA chain with all documents and reranking support"""
         try:
             if self.qdrant_client:
                 self.qdrant_vectorstore = Qdrant(
@@ -540,30 +795,41 @@ Answer:"""
                 self.qa_chain = None
                 return
             
+            # Adjust retrieval K based on whether reranking is enabled
+            retrieval_k = RETRIEVAL_K_BEFORE_RERANK if ENABLE_RERANKING else RETRIEVAL_K
+            
             if self.all_texts and self.qdrant_vectorstore:
                 qdrant_retriever = self.qdrant_vectorstore.as_retriever(
-                    search_kwargs={'k': RETRIEVAL_K}
+                    search_kwargs={'k': retrieval_k}
                 )
                 
                 bm25_retriever = BM25Retriever.from_documents(documents=self.all_texts)
-                bm25_retriever.k = RETRIEVAL_K
+                bm25_retriever.k = retrieval_k
                 
-                retriever = EnsembleRetriever(
+                base_retriever = EnsembleRetriever(
                     retrievers=[bm25_retriever, qdrant_retriever],
                     weights=ENSEMBLE_WEIGHTS
                 )
             
             elif self.qdrant_vectorstore:
-                retriever = self.qdrant_vectorstore.as_retriever(
-                    search_kwargs={'k': RETRIEVAL_K}
+                base_retriever = self.qdrant_vectorstore.as_retriever(
+                    search_kwargs={'k': retrieval_k}
                 )
             else:
                 self.qa_chain = None
                 return
             
+            # Wrap retriever with reranking if enabled
+            if ENABLE_RERANKING:
+                print("[INFO] QA chain will use cross-encoder reranking")
+                # Create a custom retriever that applies reranking
+                final_retriever = RerankingRetriever(base_retriever=base_retriever)
+            else:
+                final_retriever = base_retriever
+            
             self.qa_chain = ConversationalRetrievalChain.from_llm(
                 llm=llm,
-                retriever=retriever,
+                retriever=final_retriever,
                 return_source_documents=True,
                 combine_docs_chain_kwargs={
                     "prompt": self._create_qa_prompt()
