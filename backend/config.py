@@ -5,11 +5,14 @@ includes Cross-Encoder Reranking and Contextual Enrichment configuration.
 """
 
 import os
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
 from exceptions import MissingAPIKey
+
+logger = logging.getLogger(__name__)
 
 # Attempt to import Ollama, required for local LLM support
 try:
@@ -18,24 +21,29 @@ try:
     OLLAMA_AVAILABLE = True
 except ImportError:
     OLLAMA_AVAILABLE = False
-    print("WARNING: Ollama is not installed or dependencies are missing. Only Groq will be available.")
+    logger.warning("Ollama is not installed or dependencies are missing. Only Groq will be available.")
 except ConnectionError:
     # This might trigger later, but useful to catch here if possible
     OLLAMA_AVAILABLE = False
-    print("WARNING: Cannot connect to Ollama. Falling back to Groq.")
+    logger.warning("Cannot connect to Ollama. Falling back to Groq.")
 
 # Load environment variables from .env file
 load_dotenv()
 
 # ============================================================================
-# API Keys and Authentication
+# Debug and Development Configuration
 # ============================================================================
 
-# Check for required API keys
-#if "GROQ_API_KEY" not in os.environ:
-#    raise MissingAPIKey("Groq LLM")
+# Enable debug mode for verbose logging and detailed error messages
+DEBUG_MODE = os.getenv("DEBUG_MODE", "false").lower() == "true"
 
-#GROQ_API_KEY = os.environ["GROQ_API_KEY"]
+# Enable debug endpoints (e.g., /debug/qdrant)
+ENABLE_DEBUG_ENDPOINTS = os.getenv("ENABLE_DEBUG_ENDPOINTS", "false").lower() == "true"
+
+
+# ============================================================================
+# API Keys and Authentication
+# ============================================================================
 
 # General Configuration
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama").lower() # Default to ollama
@@ -145,13 +153,13 @@ ENABLE_RERANKING = os.getenv("ENABLE_RERANKING", "true").lower() == "true"
 RERANKER_MODEL_NAME = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
 # Number of documents to retrieve before reranking
-RETRIEVAL_K_BEFORE_RERANK = 20  # Cast wider net
+RETRIEVAL_K_BEFORE_RERANK = 20
 
 # Number of documents to keep after reranking
-RETRIEVAL_K_AFTER_RERANK = 7    # Keep top results
+RETRIEVAL_K_AFTER_RERANK = 7
 
 # Minimum relevance score to include (0.0 to 1.0)
-MIN_RELEVANCE_SCORE = 0.3  # Filter out irrelevant chunks
+MIN_RELEVANCE_SCORE = 0.3
 
 # ============================================================================
 # Contextual Enrichment Configuration
@@ -175,26 +183,15 @@ if ENABLE_RERANKING:
     try:
         from sentence_transformers import CrossEncoder
         reranker = CrossEncoder(RERANKER_MODEL_NAME)
-        print(f"INFO: Reranker initialized: {RERANKER_MODEL_NAME}")
+        logger.info(f"Reranker initialized: {RERANKER_MODEL_NAME}")
     except Exception as e:
-        print(f"WARNING: Failed to initialize reranker: {e}")
-        print("INFO: Continuing without reranking")
+        logger.warning(f"Failed to initialize reranker: {e}")
+        logger.info("Continuing without reranking")
         ENABLE_RERANKING = False
         reranker = None
 
 # Thread pool for CPU-intensive operations
 executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
-
-# ============================================================================
-# Initialize Models and Resources
-# ============================================================================
-
-# Initialize Groq LLM
-#llm = ChatGroq(
-#    temperature=LLM_TEMPERATURE, 
-#    model_name=LLM_MODEL_NAME,
-#    api_key=GROQ_API_KEY
-#)
 
 # ============================================================================
 # Model Initialization
@@ -216,10 +213,10 @@ def initialize_llm():
             # Ollama needs to be accessible from the Docker container
             llm_instance.invoke("test connectivity", config={"timeout": 5}) 
             
-            print(f"INFO: Successfully initialized Ollama LLM: {OLLAMA_MODEL} at {OLLAMA_BASE_URL}")
+            logger.info(f"Successfully initialized Ollama LLM: {OLLAMA_MODEL} at {OLLAMA_BASE_URL}")
             return llm_instance
         except (ConnectionError, Exception) as e:
-            print(f"WARNING: Failed to connect to Ollama at {OLLAMA_BASE_URL} ({type(e).__name__}). Falling back to Groq.")
+            logger.warning(f"Failed to connect to Ollama at {OLLAMA_BASE_URL} ({type(e).__name__}). Falling back to Groq.")
             # Fall through to Groq initialization
 
     # 2. Initialize Groq (Secondary / Explicit choice)
@@ -231,7 +228,7 @@ def initialize_llm():
         )
         # Update the provider variable for runtime tracking
         LLM_PROVIDER = "groq"
-        print(f"INFO: Using Groq LLM (Fallback or Explicit): {LLM_MODEL_NAME}")
+        logger.info(f"Using Groq LLM (Fallback or Explicit): {LLM_MODEL_NAME}")
         return llm_instance
     else:
         # If Ollama failed and Groq key is missing, this is a fatal configuration error

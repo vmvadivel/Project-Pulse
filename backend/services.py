@@ -11,6 +11,9 @@ import threading
 import json
 import gc
 import uuid
+import logging
+logger = logging.getLogger(__name__)
+
 from typing import List, Dict, Any
 from datetime import datetime
 
@@ -81,10 +84,10 @@ def initialize_qdrant_client():
         # Create Qdrant client with persistent storage
         client = QdrantClient(path=QDRANT_STORAGE_PATH)
         
-        print(f"Qdrant client initialized with storage at: {QDRANT_STORAGE_PATH}")
+        logger.info(f"Qdrant client initialized with storage at: {QDRANT_STORAGE_PATH}")
         return client
     except Exception as e:
-        print(f"Error initializing Qdrant client: {e}")
+        logger.error(f"Error initializing Qdrant client: {e}")
         raise
 
 
@@ -100,7 +103,7 @@ def ensure_collection_exists(
         collection_exists = any(col.name == collection_name for col in collections.collections)
         
         if not collection_exists:
-            print(f"Creating new collection: {collection_name}")
+            logger.info(f"Creating new collection: {collection_name}")
             client.create_collection(
                 collection_name=collection_name,
                 vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
@@ -112,12 +115,12 @@ def ensure_collection_exists(
                     flush_interval_sec=5
                 )
             )
-            print(f"Collection '{collection_name}' created successfully")
+            logger.info(f"Collection '{collection_name}' created successfully")
         else:
-            print(f"Collection '{collection_name}' already exists")
+            logger.info(f"Collection '{collection_name}' already exists")
             
     except Exception as e:
-        print(f"Error managing collection: {e}")
+        logger.error(f"Error managing collection: {e}")
         raise
 
 
@@ -172,7 +175,7 @@ def save_documents_to_json(documents: List[Document], file_path: str):
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(serialized, f, indent=2, ensure_ascii=False)
     except Exception as e:
-        print(f"Error saving documents to {file_path}: {e}")
+        logger.error(f"Error saving documents to {file_path}: {e}")
         raise
 
 
@@ -185,7 +188,7 @@ def load_documents_from_json(file_path: str) -> List[Document]:
             doc_data = json.load(f)
         return deserialize_documents(doc_data)
     except Exception as e:
-        print(f"Error loading documents from {file_path}: {e}")
+        logger.warning(f"Error loading documents from {file_path}: {e}")
         return []
 
 
@@ -196,7 +199,7 @@ def save_metadata_to_file(file_metadata: dict):
         with open(metadata_path, 'w', encoding='utf-8') as f:
             json.dump(file_metadata, f, indent=2, ensure_ascii=False)
     except Exception as e:
-        print(f"Error saving metadata: {e}")
+        logger.error(f"Error saving metadata: {e}")
 
 
 def load_metadata_from_file() -> dict:
@@ -207,7 +210,7 @@ def load_metadata_from_file() -> dict:
             with open(metadata_path, 'r', encoding='utf-8') as f:
                 return json.load(f)
     except Exception as e:
-        print(f"Error loading metadata: {e}")
+        logger.warning(f"Error loading metadata: {e}")
     return {}
 
 
@@ -328,7 +331,7 @@ def apply_contextual_enrichment(
     if not ENABLE_CONTEXTUAL_ENRICHMENT:
         return texts
     
-    print(f"[ENRICHMENT] Applying contextual enrichment to {len(texts)} chunks from {filename}")
+    logger.debug(f"[ENRICHMENT] Applying contextual enrichment to {len(texts)} chunks from {filename}")
     
     # Extract document-level metadata
     doc_metadata = extract_document_metadata(filename, documents)
@@ -339,7 +342,7 @@ def apply_contextual_enrichment(
         enriched_chunk = enrich_chunk_with_context(chunk, texts, i, doc_metadata)
         enriched_texts.append(enriched_chunk)
     
-    print(f"[ENRICHMENT] Enrichment complete. Sample enriched chunk length: {len(enriched_texts[0].page_content) if enriched_texts else 0} chars")
+    logger.debug(f"[ENRICHMENT] Enrichment complete. Sample enriched chunk length: {len(enriched_texts[0].page_content) if enriched_texts else 0} chars")
     
     return enriched_texts
 
@@ -362,7 +365,7 @@ def rerank_documents(query: str, documents: List[Document]) -> List[Document]:
     if not ENABLE_RERANKING or reranker is None or not documents:
         return documents[:RETRIEVAL_K_AFTER_RERANK]
     
-    print(f"[RERANKING] Reranking {len(documents)} documents for query: '{query[:50]}...'")
+    logger.debug(f"[RERANKING] Reranking {len(documents)} documents for query: '{query[:50]}...'")
     
     try:
         # Prepare query-document pairs for reranking
@@ -387,10 +390,10 @@ def rerank_documents(query: str, documents: List[Document]) -> List[Document]:
             if score >= MIN_RELEVANCE_SCORE
         ]
         
-        print(f"[RERANKING] Filtered to {len(filtered_docs)} documents above threshold {MIN_RELEVANCE_SCORE}")
+        logger.debug(f"[RERANKING] Filtered to {len(filtered_docs)} documents above threshold {MIN_RELEVANCE_SCORE}")
         
         if filtered_docs:
-            print(f"[RERANKING] Score range: {filtered_docs[0][1]:.3f} (best) to {filtered_docs[-1][1]:.3f} (worst)")
+            logger.debug(f"[RERANKING] Score range: {filtered_docs[0][1]:.3f} (best) to {filtered_docs[-1][1]:.3f} (worst)")
         
         # Take top K after reranking
         reranked_docs = [doc for doc, score in filtered_docs[:RETRIEVAL_K_AFTER_RERANK]]
@@ -403,7 +406,7 @@ def rerank_documents(query: str, documents: List[Document]) -> List[Document]:
         return reranked_docs
         
     except Exception as e:
-        print(f"[RERANKING] Error during reranking: {e}")
+        logger.error(f"[RERANKING] Error during reranking: {e}")
         return documents[:RETRIEVAL_K_AFTER_RERANK]
 
 
@@ -478,9 +481,9 @@ def process_document_sync(temp_file_path: str, filename: str) -> tuple:
         else:
             loader = UnstructuredFileLoader(temp_file_path)
 
-        print(f"Starting document loading for {filename}...")
+        logger.info(f"Starting document loading for {filename}...")
         documents = loader.load()
-        print(f"Document loading complete for {filename}. Loaded {len(documents)} documents.")
+        logger.info(f"Document loading complete for {filename}. Loaded {len(documents)} documents.")
 
         # Filter out empty documents
         documents = [doc for doc in documents if doc.page_content.strip()]
@@ -495,9 +498,9 @@ def process_document_sync(temp_file_path: str, filename: str) -> tuple:
             separators=TEXT_SEPARATORS
         )
 
-        print(f"Starting text chunking for {filename}...")
+        logger.info(f"Starting text chunking for {filename}...")
         texts = text_splitter.split_documents(documents)
-        print(f"Text chunking complete for {filename}. Created {len(texts)} text chunks.")
+        logger.info(f"Text chunking complete for {filename}. Created {len(texts)} text chunks.")
 
         # Filter out very short chunks
         texts = [text for text in texts if len(text.page_content.strip()) > MIN_CHUNK_LENGTH]
@@ -513,8 +516,9 @@ def process_document_sync(temp_file_path: str, filename: str) -> tuple:
         
     except Exception as e:
         import traceback
-        print(f"DETAILED ERROR for {filename}:")
-        print(traceback.format_exc())
+        logger.error(f"File processing failed for {filename}: {e}")
+        logger.error(f"DETAILED ERROR for {filename}:")
+        logger.error(f"{traceback.format_exc()}")
         raise FileProcessingError(filename, str(e))
 
 
@@ -556,27 +560,27 @@ class DocumentStore:
             
             # If we have existing data, rebuild the QA chain
             if self.file_metadata:
-                print(f"Found {len(self.file_metadata)} files in persistent storage")
-                print(f"Loaded {len(self.all_documents)} documents and {len(self.all_texts)} text chunks")
+                logger.debug(f"Found {len(self.file_metadata)} files in persistent storage")
+                logger.debug(f"Loaded {len(self.all_documents)} documents and {len(self.all_texts)} text chunks")
                 self._rebuild_qa_chain()
             else:
-                print("No existing data found, starting fresh")
+                logger.info("No existing data found, starting fresh")
                 
         except Exception as e:
-            print(f"Error initializing persistent storage: {e}")
-            print("Falling back to in-memory storage")
+            logger.warning(f"Error initializing persistent storage: {e}")
+            logger.warning("Falling back to in-memory storage")
             self.qdrant_client = None
 
     def ensure_client_is_ready(self):
         """Checks if the Qdrant client is None and re-initializes it if needed."""
         if self.qdrant_client is None:
-            print("[RE-INIT] Client is None. Attempting to re-initialize Qdrant client and collection...")
+            logger.info("[RE-INIT] Client is None. Attempting to re-initialize Qdrant client and collection...")
             try:
                 self.qdrant_client = initialize_qdrant_client()
                 ensure_collection_exists(self.qdrant_client, COLLECTION_NAME)
-                print("[RE-INIT] Qdrant client and collection successfully re-initialized.")
+                logger.info("[RE-INIT] Qdrant client and collection successfully re-initialized.")
             except Exception as e:
-                print(f"[RE-INIT] Error re-initializing Qdrant client: {e}")
+                logger.error(f"[RE-INIT] Error re-initializing Qdrant client: {e}")
                 self.qdrant_client = None
     
     def _save_complete_state(self):
@@ -596,10 +600,10 @@ class DocumentStore:
             # Save metadata
             save_metadata_to_file(self.file_metadata)
             
-            print(f"Saved complete state: {len(self.all_documents)} documents, {len(self.all_texts)} text chunks")
+            logger.debug(f"Saved complete state: {len(self.all_documents)} documents, {len(self.all_texts)} text chunks")
             
         except Exception as e:
-            print(f"Error saving complete state: {e}")
+            logger.error(f"Error saving complete state: {e}")
     
     def _load_complete_state(self):
         """Load all documents, texts, and metadata from JSON files."""
@@ -618,7 +622,7 @@ class DocumentStore:
             self.file_metadata = load_metadata_from_file()
             
         except Exception as e:
-            print(f"Error loading complete state: {e}")
+            logger.warning(f"Error loading complete state: {e}")
             self.all_documents = []
             self.all_texts = []
             self.file_metadata = {}
@@ -661,7 +665,7 @@ class DocumentStore:
             }
             
             if self.qdrant_client:
-                print(f"[DEBUG] Starting Qdrant upsert process for {len(texts)} chunks...")
+                logger.debug(f"Starting Qdrant upsert process for {len(texts)} chunks")
                 
                 try:
                     # Generate vectors
@@ -671,7 +675,7 @@ class DocumentStore:
                     if not vectors or len(vectors) != len(texts):
                         raise QdrantUpsertFailed(COLLECTION_NAME, len(texts), "Vector generation failed or vector count mismatch")
 
-                    print(f"[DEBUG] Vectorization complete. Created {len(vectors)} vectors.")
+                    logger.debug(f"Vectorization complete. Created {len(vectors)} vectors")
 
                     # Create PointStructs for Qdrant
                     points = [
@@ -684,25 +688,25 @@ class DocumentStore:
                     ]
 
                     # Upsert the points
-                    print(f"[DEBUG] Calling qdrant_client.upsert for {len(points)} points...")
+                    logger.debug(f"Calling qdrant_client.upsert for {len(points)} points")
                     self.qdrant_client.upsert(
                         collection_name=COLLECTION_NAME,
                         points=points,
                         wait=True
                     )
-                    print(f"Successfully upserted {len(points)} points to Qdrant.")
+                    logger.info(f"Successfully upserted {len(points)} points to Qdrant.")
                     
                     # Verify count
                     final_count_result = self.qdrant_client.count(COLLECTION_NAME, exact=True)
-                    print(f"--- QDRANT PERSISTENCE CHECK ---")
-                    print(f"Upsert Complete. Current Qdrant Count: {final_count_result.count}")
-                    print(f"--------------------------------")
+                    logger.debug("--- QDRANT PERSISTENCE CHECK ---") # Changed
+                    logger.debug(f"Upsert Complete. Current Qdrant Count: {final_count_result.count}") # Changed
+                    logger.debug("--------------------------------")
                     
                 except QdrantUpsertFailed:
                     # Re-raise our custom exception
                     raise
                 except Exception as e:
-                    print(f"!!! CRITICAL QDRANT ERROR during upsert: {e}")
+                    logger.critical(f"!!! CRITICAL QDRANT ERROR during upsert: {e}")
                     raise QdrantUpsertFailed(COLLECTION_NAME, len(points) if 'points' in locals() else len(texts), str(e))
             
             # Save to persistent storage (JSON)
@@ -755,7 +759,7 @@ class DocumentStore:
                 return True
                 
             except Exception as e:
-                print(f"Error removing file {filename}: {e}")
+                logger.error(f"Error removing file {filename}: {e}")
                 raise VectorStoreSyncError("delete", str(e))
     
     def _create_qa_prompt(self):
@@ -821,7 +825,7 @@ Answer:"""
             
             # Wrap retriever with reranking if enabled
             if ENABLE_RERANKING:
-                print("[INFO] QA chain will use cross-encoder reranking")
+                logger.info("QA chain will use cross-encoder reranking")
                 # Create a custom retriever that applies reranking
                 final_retriever = RerankingRetriever(base_retriever=base_retriever)
             else:
@@ -837,7 +841,7 @@ Answer:"""
             )
             
         except Exception as e:
-            print(f"Error rebuilding QA chain: {e}")
+            logger.error(f"Error rebuilding QA chain: {e}")
             self.qa_chain = None
     
     def has_documents(self) -> bool:
@@ -875,7 +879,7 @@ Answer:"""
                 
                 # 2. Complete Persistent Storage Reset
                 if self.qdrant_client:
-                    print(f"!!! CRITICAL: Resetting persistent Qdrant/JSON storage at {QDRANT_STORAGE_PATH}...")
+                    logger.critical(f"Resetting persistent Qdrant/JSON storage at {QDRANT_STORAGE_PATH}...")
                     
                     try:
                         # --- STEP 1: Delete the Vectorstore to release its connection ---
@@ -897,34 +901,34 @@ Answer:"""
                         if os.path.exists(QDRANT_STORAGE_PATH):
                             try:
                                 shutil.rmtree(QDRANT_STORAGE_PATH)
-                                print("Persistent storage successfully deleted.")
+                                logger.info("Persistent storage successfully deleted.")
                             except PermissionError as pe:
                                 # If still locked, try deleting individual files
-                                print(f"Permission error deleting folder, attempting file-by-file deletion: {pe}")
+                                logger.warning(f"Permission error deleting folder, attempting file-by-file deletion: {pe}")
                                 for root, dirs, files in os.walk(QDRANT_STORAGE_PATH, topdown=False):
                                     for name in files:
                                         try:
                                             os.remove(os.path.join(root, name))
                                         except Exception as e:
-                                            print(f"Could not delete file {name}: {e}")
+                                            logger.warning(f"Could not delete file {name}: {e}")
                                     for name in dirs:
                                         try:
                                             os.rmdir(os.path.join(root, name))
                                         except Exception as e:
-                                            print(f"Could not delete directory {name}: {e}")
+                                            logger.warning(f"Could not delete directory {name}: {e}")
                                 # Try one more time to remove the root
                                 try:
                                     shutil.rmtree(QDRANT_STORAGE_PATH)
                                 except:
-                                    print("Warning: Some files may remain locked. They will be overwritten on next initialization.")
+                                    logger.warning("Some files may remain locked. They will be overwritten on next initialization.")
                         
                         # --- STEP 4: Immediately re-initialize with fresh storage ---
-                        print("Re-initializing fresh Qdrant client and collection...")
+                        logger.info("Re-initializing fresh Qdrant client and collection...")
                         self._initialize_persistent_storage()
-                        print("Fresh Qdrant storage initialized successfully.")
+                        logger.info("Fresh Qdrant storage initialized successfully.")
                         
                     except Exception as e:
-                        print(f"Error during storage reset: {e}")
+                        logger.error(f"Error during storage reset: {e}")
                         # Ensure client is None so it can be re-initialized
                         self.qdrant_client = None
                         self.qdrant_vectorstore = None
@@ -932,10 +936,10 @@ Answer:"""
                         try:
                             self._initialize_persistent_storage()
                         except Exception as init_error:
-                            print(f"Failed to re-initialize storage: {init_error}")
+                            logger.error(f"Failed to re-initialize storage: {init_error}")
                 
             except Exception as e:
-                print(f"Error clearing all data: {e}")
+                logger.error(f"Error clearing all data: {e}")
 
     def get_stats(self) -> Dict[str, Any]:
         """Get system statistics"""

@@ -10,6 +10,9 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 import uuid
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 # ============================================================================
 # Base Exception
@@ -430,9 +433,12 @@ def register_error_handlers(app):
         request_id = str(uuid.uuid4())
         
         # Log the error (will be enhanced with proper logging later)
-        print(f"[ERROR] {exc.error_code} - {exc.message} | Request ID: {request_id}")
+        logger.error(
+            f"{exc.error_code} - {exc.message} | Request ID: {request_id}",
+            extra={'error_code': exc.error_code, 'request_id': request_id}
+        )
         if exc.details:
-            print(f"[ERROR] Details: {exc.details}")
+            logger.error(f"Error details: {exc.details}")
         
         return JSONResponse(
             status_code=exc.status_code,
@@ -453,8 +459,10 @@ def register_error_handlers(app):
                 "type": error["type"]
             })
         
-        print(f"[ERROR] VALIDATION - Request validation failed | Request ID: {request_id}")
-        print(f"[ERROR] Errors: {errors}")
+        logger.warning(
+            f"Request validation failed | Request ID: {request_id}",
+            extra={'request_id': request_id, 'validation_errors': errors}
+        )
         
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -479,9 +487,11 @@ def register_error_handlers(app):
         request_id = str(uuid.uuid4())
         
         # Log the full exception (will be enhanced with proper logging later)
-        print(f"[ERROR] UNHANDLED EXCEPTION | Request ID: {request_id}")
-        print(f"[ERROR] Type: {type(exc).__name__}")
-        print(f"[ERROR] Message: {str(exc)}")
+        logger.critical(
+            f"UNHANDLED EXCEPTION | Request ID: {request_id} | Type: {type(exc).__name__}",
+            exc_info=True,  # This includes full traceback automatically
+            extra={'request_id': request_id}
+        )
         
         # Don't expose internal error details to users in production
         return JSONResponse(
@@ -501,4 +511,4 @@ def register_error_handlers(app):
             }
         )
     
-    print("Error handlers registered successfully")
+    logger.info("Error handlers registered successfully")

@@ -127,7 +127,7 @@ def retry_with_backoff(
                     import random
                     delay = delay * (0.5 + random.random())
                     
-                    print(f"Retry {retries}/{max_retries} after {delay:.2f}s due to: {str(e)}")
+                    logger.warning(f"Retry {retries}/{max_retries} after {delay:.2f}s due to: {str(e)}")
                     time.sleep(delay)
             
             return None

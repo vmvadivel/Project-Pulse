@@ -1,5 +1,11 @@
+"""
+Enhanced Multi-File RAG System - Main Application
+Production-ready FastAPI application with proper logging and error handling.
+"""
+
 import os
 import asyncio
+import logging
 from typing import Any, List
 import time
 from datetime import datetime
@@ -9,31 +15,75 @@ from config import *
 from utils import *
 from services import DocumentStore, process_document_sync
 
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# Initialize FastAPI
+# ============================================================================
+# Logging Configuration
+# ============================================================================
+
+# Get debug mode from environment
+DEBUG_MODE = os.getenv("DEBUG_MODE", "false").lower() == "true"
+ENABLE_DEBUG_ENDPOINTS = os.getenv("ENABLE_DEBUG_ENDPOINTS", "false").lower() == "true"
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG if DEBUG_MODE else logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+logger = logging.getLogger(__name__)
+
+# CRITICAL: Suppress DEBUG logs from ALL modules in production
+if not DEBUG_MODE:
+    # Set root logger to INFO (affects all modules)
+    logging.getLogger().setLevel(logging.INFO)
+    
+    # Explicitly silence noisy third-party libraries
+    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
+    logging.getLogger("transformers").setLevel(logging.WARNING)
+    logging.getLogger("torch").setLevel(logging.WARNING)
+
+logger.info(f"Application starting - Debug Mode: {DEBUG_MODE}")
+
+# ============================================================================
+# FastAPI Application
+# ============================================================================
+
 app = FastAPI(
     title=APP_TITLE,
     description=APP_DESCRIPTION,
-    version=APP_VERSION
+    version=APP_VERSION,
+    docs_url="/docs" if ENABLE_DEBUG_ENDPOINTS else None,
+    redoc_url="/redoc" if ENABLE_DEBUG_ENDPOINTS else None,
 )
 
-# === NEW: Register Custom Error Handlers ===
-register_error_handlers(app) 
+# Register Custom Error Handlers
+register_error_handlers(app)
+logger.info("Custom error handlers registered")
 
-# Enable CORS to allow the frontend to access the backend
+# Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+logger.info("CORS middleware configured")
 
 # Global document store
 doc_store = DocumentStore()
+
+# ============================================================================
+# Request/Response Models
+# ============================================================================
 
 class ChatRequest(BaseModel):
     query: str
@@ -72,8 +122,18 @@ class SystemStatsResponse(BaseModel):
     reranking_enabled: bool
     contextual_enrichment_enabled: bool
 
-@app.get("/")
+# ============================================================================
+# API Endpoints
+# ============================================================================
+
+@app.get("/",
+    summary="System Information",
+    description="Get system information, features, and configuration"
+)
 def read_root():
+    """Root endpoint returning system information."""
+    logger.debug("Root endpoint accessed")
+    
     return {
         "message": APP_TITLE,
         "version": APP_VERSION,
@@ -84,22 +144,49 @@ def read_root():
         "contextual_enrichment_enabled": ENABLE_CONTEXTUAL_ENRICHMENT
     }
 
-@app.get("/health")
+
+@app.get("/health",
+    summary="Health Check",
+    description="Check system health and get basic statistics"
+)
 def health_check():
-    """Health check endpoint"""
+    """
+    Health check endpoint for monitoring and load balancers.
+    Returns system status and basic statistics.
+    """
     stats = doc_store.get_stats()
-    return {
+    
+    health_data = {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "stats": stats,
         "reranking_enabled": ENABLE_RERANKING,
         "contextual_enrichment_enabled": ENABLE_CONTEXTUAL_ENRICHMENT
     }
+    
+    logger.debug(f"Health check - Files: {stats['total_files']}, Chunks: {stats['total_chunks']}")
+    
+    return health_data
 
-@app.get("/stats", response_model=SystemStatsResponse)
+
+@app.get("/stats",
+    response_model=SystemStatsResponse,
+    summary="System Statistics",
+    description="Get detailed system statistics and configuration"
+)
 def get_system_stats():
-    """Get detailed system statistics"""
+    """
+    Get comprehensive system statistics including:
+    - File counts and sizes
+    - Document and chunk counts
+    - Processing performance metrics
+    - Storage configuration
+    - Feature flags
+    """
     stats = doc_store.get_stats()
+    
+    logger.debug(f"Statistics requested - {stats['total_files']} files, {stats['total_chunks']} chunks")
+    
     return SystemStatsResponse(
         total_files=stats['total_files'],
         total_documents=stats['total_documents'],
@@ -112,10 +199,24 @@ def get_system_stats():
         contextual_enrichment_enabled=ENABLE_CONTEXTUAL_ENRICHMENT
     )
 
-@app.get("/files", response_model=FileListResponse)
+
+@app.get("/files",
+    response_model=FileListResponse,
+    summary="List Files",
+    description="Get list of all uploaded files with metadata"
+)
 def get_uploaded_files():
-    """Get list of all uploaded files with complete metadata"""
+    """
+    Retrieve list of all uploaded files with detailed metadata:
+    - Filename and type
+    - Document and chunk counts
+    - File size
+    - Upload date and processing time
+    """
     files = doc_store.get_file_list()
+    
+    logger.debug(f"File list requested - {len(files)} files")
+    
     return FileListResponse(
         files=files,
         total_files=len(files),
@@ -123,47 +224,141 @@ def get_uploaded_files():
         total_chunks=len(doc_store.all_texts)
     )
 
-@app.delete("/files")
+
+@app.delete("/files",
+    summary="Clear All Files",
+    description="Delete all uploaded files and reset the knowledge base"
+)
 def clear_all_files():
-    """Clear all uploaded files and reset the system"""
+    """
+    Clear all uploaded files and reset the system.
+    
+    WARNING: This action is irreversible and will:
+    - Delete all uploaded documents
+    - Clear the vector database
+    - Reset conversation history
+    - Remove all file metadata
+    """
+    logger.warning("Clear all files requested")
+    
+    files_before = len(doc_store.file_metadata)
     doc_store.clear_all()
+    
+    logger.info(f"Cleared {files_before} files successfully")
+    
     return {"message": "All files cleared successfully"}
 
-@app.delete("/files/{filename}", response_model=DeleteFileResponse)
+
+@app.delete("/files/{filename}",
+    response_model=DeleteFileResponse,
+    summary="Delete File",
+    description="Delete a specific file from the knowledge base"
+)
 def delete_specific_file(filename: str):
-    """Delete a specific file from the knowledge base"""
+    """
+    Delete a specific file from the knowledge base.
+    
+    This will:
+    - Remove the file and its chunks from vector database
+    - Update document statistics
+    - Rebuild the QA chain
+    
+    Args:
+        filename: Name of the file to delete
+        
+    Raises:
+        InvalidRequest: If file not found
+    """
+    logger.info(f"Delete request for file: {filename}")
+    
     success = doc_store.remove_file(filename)
     
     if not success:
+        logger.warning(f"Delete failed - file not found: {filename}")
         raise InvalidRequest(f"File '{filename}' not found in the knowledge base")
     
     remaining_files = len(doc_store.file_metadata)
+    logger.info(f"Successfully deleted {filename}. Remaining files: {remaining_files}")
+    
     return DeleteFileResponse(
         message=f"File '{filename}' deleted successfully",
         deleted_file=filename,
         remaining_files=remaining_files
     )
 
-@app.get("/export")
+
+@app.get("/export",
+    summary="Export Knowledge Base",
+    description="Export all documents and metadata for backup"
+)
 def export_knowledge_base():
-    """Export all documents and metadata for backup"""
+    """
+    Export the complete knowledge base including:
+    - All document content
+    - File metadata
+    - Processing statistics
+    
+    Useful for:
+    - Backup and restore
+    - Migration to another instance
+    - Data analysis
+    """
+    logger.info("Knowledge base export requested")
+    
     try:
         exported_data = doc_store.export_data()
+        
+        logger.info(f"Export successful - {len(exported_data['documents'])} documents")
+        
         return {
             "message": "Data exported successfully",
             "export_size": len(exported_data['documents']),
             "data": exported_data
         }
     except Exception as e:
+        logger.error(f"Export failed: {str(e)}", exc_info=DEBUG_MODE)
         raise VectorStoreSyncError("export", str(e))
 
-@app.get("/debug/qdrant")
+
+# ============================================================================
+# Conditional Debug Endpoint
+# ============================================================================
+
+async def verify_debug_enabled():
+    """Dependency to check if debug endpoints are enabled."""
+    if not ENABLE_DEBUG_ENDPOINTS:
+        raise HTTPException(
+            status_code=404,
+            detail="Endpoint not found. Enable ENABLE_DEBUG_ENDPOINTS=true to access debug endpoints."
+        )
+    return True
+
+
+@app.get("/debug/qdrant",
+    summary="Debug Qdrant Status",
+    description="[DEBUG ONLY] Get detailed Qdrant vector store status",
+    tags=["Debug"],
+    dependencies=[Depends(verify_debug_enabled)]
+)
 def debug_qdrant():
-    """Debug Qdrant collection status - useful for troubleshooting persistence"""
+    """
+    Debug endpoint to inspect Qdrant collection status.
+    
+    Only accessible when ENABLE_DEBUG_ENDPOINTS=true in .env
+    
+    Returns:
+    - Collection information
+    - Point counts
+    - Vector store status
+    - In-memory counts
+    """
+    logger.debug("Debug endpoint accessed: /debug/qdrant")
+    
     try:
         if doc_store.qdrant_client:
             collection_info = doc_store.qdrant_client.get_collection(COLLECTION_NAME)
             points_count_result = doc_store.qdrant_client.count(COLLECTION_NAME, exact=True)
+            
             return {
                 "collection_exists": True,
                 "collection_info": collection_info,
@@ -180,7 +375,7 @@ def debug_qdrant():
             }
         else:
             return {
-                "collection_exists": False, 
+                "collection_exists": False,
                 "error": "No Qdrant client - using in-memory storage",
                 "in_memory_counts": {
                     "documents": len(doc_store.all_documents),
@@ -189,15 +384,46 @@ def debug_qdrant():
                 }
             }
     except Exception as e:
+        logger.error(f"Debug endpoint error: {str(e)}", exc_info=True)
         return {"error": str(e)}
 
-@app.post("/ingest", response_model=IngestResponse)
+
+@app.post("/ingest",
+    response_model=IngestResponse,
+    summary="Upload Document",
+    description="Upload and process a document for the knowledge base"
+)
 async def ingest_file(file: UploadFile = File(...)):
     """
-    Ingests a file and adds it to the existing vector store with enhanced performance and persistence.
-    Now includes contextual enrichment.
+    Ingest a document and add it to the knowledge base.
+    
+    Process:
+    1. Validate file (type, size, uniqueness)
+    2. Parse document content
+    3. Split into chunks with optional contextual enrichment
+    4. Generate embeddings
+    5. Store in vector database
+    6. Build/rebuild QA chain
+    
+    Supported formats:
+    - PDF, Word (doc/docx)
+    - Excel (xls/xlsx), PowerPoint (ppt/pptx)
+    - Text, Markdown, HTML
+    - CSV, JSON, XML
+    
+    Args:
+        file: Uploaded file (max 100MB)
+        
+    Returns:
+        IngestResponse with processing statistics
+        
+    Raises:
+        FileTooLarge: If file exceeds 100MB
+        UnsupportedFileType: If file format not supported
+        FileAlreadyExists: If filename already in knowledge base
+        FileProcessingError: If processing fails
     """
-    print(f"Received file for ingestion: {file.filename} ({format_file_size(file.size or 0)})")
+    logger.info(f"Ingestion started: {file.filename} ({format_file_size(file.size or 0)})")
     
     validate_uploaded_file(file, set(doc_store.file_metadata.keys()))
 
@@ -205,11 +431,11 @@ async def ingest_file(file: UploadFile = File(...)):
     start_time = time.time()
     
     try:
-        # Create a temporary directory if it doesn't exist
+        # Create temporary directory
         os.makedirs(TEMP_UPLOAD_DIR, exist_ok=True)
         temp_file_path = os.path.join(TEMP_UPLOAD_DIR, file.filename)
 
-        # Save the uploaded content to the temporary file
+        # Save uploaded file
         with open(temp_file_path, "wb") as buffer:
             content = await file.read()
             buffer.write(content)
@@ -218,18 +444,20 @@ async def ingest_file(file: UploadFile = File(...)):
         file_size = os.path.getsize(temp_file_path)
         file_type = get_file_type_from_extension(file.filename)
         
-        print(f"File details - Type: {file_type}, Size: {format_file_size(file_size)}")
+        logger.debug(f"File saved - Type: {file_type}, Size: {format_file_size(file_size)}")
 
-        # Process document in thread pool (includes contextual enrichment)
+        # Process document (includes contextual enrichment if enabled)
         loop = asyncio.get_event_loop()
         documents, texts, processing_time = await loop.run_in_executor(
-            executor, 
-            process_document_sync, 
-            temp_file_path, 
+            executor,
+            process_document_sync,
+            temp_file_path,
             file.filename
         )
 
-        # Prepare file info for storage
+        logger.debug(f"Document processed - {len(documents)} docs, {len(texts)} chunks in {processing_time:.2f}s")
+
+        # Prepare file metadata
         file_info = {
             'type': file_type,
             'size': file_size,
@@ -237,11 +465,15 @@ async def ingest_file(file: UploadFile = File(...)):
             'processing_time': processing_time
         }
 
-        # Add documents to the store
+        # Add to document store
         doc_store.add_documents(documents, texts, file.filename, file_info)
 
         total_time = time.time() - start_time
-        print(f"Total ingestion time for {file.filename}: {total_time:.2f}s")
+        
+        logger.info(
+            f"Ingestion complete: {file.filename} - "
+            f"{len(texts)} chunks created in {total_time:.2f}s total"
+        )
 
         return IngestResponse(
             message=f"File '{file.filename}' ingested successfully and added to persistent knowledge base.",
@@ -257,41 +489,77 @@ async def ingest_file(file: UploadFile = File(...)):
         )
 
     except ValueError as ve:
-        print(f"Validation error during ingestion: {ve}")
+        logger.error(f"Validation error during ingestion of {file.filename}: {str(ve)}")
         raise FileProcessingError(file.filename, str(ve))
     except Exception as e:
-        print(f"Error during ingestion: {e}")
+        logger.error(f"Error during ingestion of {file.filename}: {str(e)}", exc_info=DEBUG_MODE)
         raise FileProcessingError(file.filename, str(e))
     finally:
-        # Cleanup the temporary file
+        # Cleanup temporary file
         if temp_file_path and os.path.exists(temp_file_path):
             os.remove(temp_file_path)
+            logger.debug(f"Temporary file cleaned up: {temp_file_path}")
 
-@app.post("/chat")
+
+@app.post("/chat",
+    summary="Query Knowledge Base",
+    description="Ask questions and get AI-generated answers from uploaded documents"
+)
 async def chat_with_docs(request: ChatRequest):
     """
-    Answers a user's query based on all ingested documents.
-    Now includes reranking for improved relevance.
+    Query the RAG system with natural language questions.
+    
+    Process:
+    1. Retrieve relevant chunks (hybrid BM25 + vector search)
+    2. Apply cross-encoder reranking (if enabled)
+    3. Generate answer using LLM with conversation history
+    4. Return answer with source attribution
+    
+    The system uses:
+    - Hybrid retrieval (BM25 + semantic search)
+    - Cross-encoder reranking for relevance filtering
+    - Contextually enriched chunks for better understanding
+    - Conversation history for context-aware responses
+    
+    Args:
+        request: ChatRequest with query string
+        
+    Returns:
+        Dict with:
+        - response: Generated answer
+        - source_files: List of documents used
+        - source_details: Detailed chunk information
+        - reranking_scores: Relevance scores (if enabled)
+        - response_time: Processing time
+        
+    Raises:
+        NoDocumentsIngested: If knowledge base is empty
+        RetrievalFailed: If document retrieval fails
+        LLMServiceUnavailable: If LLM service is down
+        LLMRateLimitExceeded: If API rate limit hit
     """
     start_time = time.time()
     
-    # Ensure client is ready
-    doc_store.ensure_client_is_ready() 
+    logger.info(f"Chat query received: '{request.query[:100]}...'")
     
-    # Rebuild QA chain if needed (this also correctly sets it to None if KB is empty)
+    # Ensure Qdrant client is ready
+    doc_store.ensure_client_is_ready()
+    
+    # Rebuild QA chain if needed
     if doc_store.qa_chain is None and doc_store.has_documents():
+        logger.debug("Rebuilding QA chain...")
         doc_store._rebuild_qa_chain()
         
     if not doc_store.has_documents():
-        # Even if qa_chain is None, this is the clearer and faster check for an empty KB
+        logger.warning("Chat attempted with empty knowledge base")
         raise NoDocumentsIngested()
     
     if doc_store.qa_chain is None:
-        # Fallback if has_documents is True but qa_chain failed to build
+        logger.error("QA chain failed to initialize despite having documents")
         raise RetrievalFailed(request.query, "Knowledge base has documents but QA chain failed to initialize.")
 
     try:
-        # Run the QA chain in thread pool
+        # Run QA chain in thread pool
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
             executor,
@@ -302,9 +570,9 @@ async def chat_with_docs(request: ChatRequest):
         )
         
         response = result['answer']
-        
-        # Get source documents with detailed metadata
         source_docs = result.get('source_documents', [])
+        
+        # Process source documents
         source_files = []
         file_types = []
         source_details = []
@@ -318,7 +586,6 @@ async def chat_with_docs(request: ChatRequest):
             if file_type not in file_types:
                 file_types.append(file_type)
             
-            # Add detailed source info for debugging
             # Use original content if available (before enrichment)
             content_preview = doc.metadata.get('original_content', doc.page_content)
             source_details.append({
@@ -331,13 +598,12 @@ async def chat_with_docs(request: ChatRequest):
                 'content_preview': content_preview[:200] + '...' if len(content_preview) > 200 else content_preview
             })
 
-        # Log retrieved sources for debugging
-        print(f"\n=== RETRIEVAL DEBUG ===")
-        print(f"Query: {request.query}")
-        print(f"Retrieved {len(source_docs)} chunks from {len(source_files)} files: {source_files}")
-        if ENABLE_RERANKING and source_docs:
-            print(f"Reranking applied: Top score = {source_docs[0].metadata.get('rerank_score', 'N/A')}")
-        print(f"======================\n")
+        # Log retrieval results (debug mode only)
+        if DEBUG_MODE:
+            logger.debug(f"Retrieved {len(source_docs)} chunks from {len(source_files)} files: {source_files}")
+            if ENABLE_RERANKING and source_docs:
+                top_score = source_docs[0].metadata.get('rerank_score', 'N/A')
+                logger.debug(f"Reranking applied - Top score: {top_score}")
 
         # Update conversation history
         doc_store.conversation_history.append((request.query, response))
@@ -345,7 +611,8 @@ async def chat_with_docs(request: ChatRequest):
             doc_store.conversation_history = doc_store.conversation_history[-MAX_CONVERSATION_HISTORY:]
 
         processing_time = time.time() - start_time
-        print(f"Chat response generated in {processing_time:.2f}s")
+        
+        logger.info(f"Chat response generated in {processing_time:.2f}s - {len(source_docs)} sources used")
 
         return {
             "response": response,
@@ -369,24 +636,48 @@ async def chat_with_docs(request: ChatRequest):
         }
         
     except Exception as e:
-        print(f"Error during chat: {e}")
-        # Try to identify specific error types
-        error_str = str(e).lower() 
+        logger.error(f"Error during chat processing: {str(e)}", exc_info=DEBUG_MODE)
+        
+        # Identify specific error types
+        error_str = str(e).lower()
        
         if "rate limit" in error_str or "429" in error_str:
+            logger.warning("Rate limit exceeded")
             raise LLMRateLimitExceeded()
         elif "timeout" in error_str:
+            logger.warning("LLM request timeout")
             raise LLMTimeout()
         elif "connection" in error_str or "groq" in error_str:
+            logger.error("LLM service connection failed")
             raise LLMServiceUnavailable("Groq", str(e))
         else:
-            # Note: This is now a true retrieval failure (e.g., Qdrant is down)
-            # as the empty KB case is handled above.
+            logger.error(f"Retrieval failed: {str(e)}")
             raise RetrievalFailed(request.query, str(e))
 
-# Cleanup function for graceful shutdown
+
+# ============================================================================
+# Application Lifecycle Events
+# ============================================================================
+
+@app.on_event("startup")
+async def startup_event():
+    """Application startup tasks."""
+    logger.info("="*60)
+    logger.info(f"{APP_TITLE} v{APP_VERSION}")
+    logger.info("="*60)
+    logger.info(f"LLM Provider: {LLM_PROVIDER}")
+    logger.info(f"Reranking: {'Enabled' if ENABLE_RERANKING else 'Disabled'}")
+    logger.info(f"Contextual Enrichment: {'Enabled' if ENABLE_CONTEXTUAL_ENRICHMENT else 'Disabled'}")
+    logger.info(f"Debug Mode: {DEBUG_MODE}")
+    logger.info(f"Debug Endpoints: {ENABLE_DEBUG_ENDPOINTS}")
+    logger.info(f"Storage: {doc_store.get_stats()['storage_type']}")
+    logger.info("="*60)
+
+
 @app.on_event("shutdown")
 def shutdown_event():
-    """Cleanup resources on shutdown"""
+    """Cleanup resources on shutdown."""
+    logger.info("Application shutdown initiated")
     executor.shutdown(wait=True)
-    print("FastAPI application shutdown complete")
+    logger.info("Thread pool executor shut down")
+    logger.info("Application shutdown complete")
