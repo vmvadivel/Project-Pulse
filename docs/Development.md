@@ -15,7 +15,7 @@ Guide for running Project Pulse locally without Docker.
 ### Step 1: Clone Repository
 
 ```cmd
-git clone <repository-url>
+git clone https://github.com/vmvadivel/Project-Pulse.git
 cd project-pulse
 ```
 

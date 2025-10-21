@@ -68,7 +68,7 @@ Docker Compose version v2.x.x
 ### Step 1: Clone the Repository
 
 ```cmd
-git clone <repository-url>
+git clone https://github.com/vmvadivel/Project-Pulse.git
 cd project-pulse
 ```
 

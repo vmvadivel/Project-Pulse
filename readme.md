@@ -51,9 +51,23 @@ A working proof-of-concept RAG (Retrieval-Augmented Generation) system built wit
 git clone https://github.com/vmvadivel/Project-Pulse.git
 cd Project-Pulse
 
-# Create .env file
-echo "GROQ_API_KEY=your_groq_api_key_here" > .env
-echo "LLM_PROVIDER=groq" >> .env
+# Create .env file in the project root 
+GROQ_API_KEY="gsk_your_api_key_here"
+LLM_PROVIDER=groq
+
+# Ollama configuration
+# LLM_PROVIDER=ollama
+# OLLAMA_BASE_URL=http://localhost:11434
+# OLLAMA_BASE_URL=http://ollama:11434 #for docker
+# OLLAMA_MODEL=llama3.1:8b
+
+# RAG Enhancement Features
+ENABLE_RERANKING=true
+ENABLE_CONTEXTUAL_ENRICHMENT=true
+
+# Enable debug endpoints and verbose logging
+DEBUG_MODE=true
+ENABLE_DEBUG_ENDPOINTS=true
 ```
 
 **2. Start with Docker**
