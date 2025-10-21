@@ -30,6 +30,12 @@ A working proof-of-concept RAG (Retrieval-Augmented Generation) system built wit
 
 ---
 
+## Demo
+
+![Demo](docs/images/ProjectPulseDemo.gif)
+
+---
+
 ## Quick Start
 
 ### Prerequisites
