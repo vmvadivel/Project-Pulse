@@ -71,17 +71,11 @@ from exceptions import (
 from utils import format_file_size
 
 
-# ============================================================================
-# Qdrant Initialization
-# ============================================================================
-
+# Qdrant setup functions
 def initialize_qdrant_client():
-    """Initialize Qdrant client with persistent storage."""
+    """Initialize Qdrant client with persistent storage"""
     try:
-        # Ensure storage directory exists
         os.makedirs(QDRANT_STORAGE_PATH, exist_ok=True)
-        
-        # Create Qdrant client with persistent storage
         client = QdrantClient(path=QDRANT_STORAGE_PATH)
         
         logger.info(f"Qdrant client initialized with storage at: {QDRANT_STORAGE_PATH}")
@@ -96,9 +90,8 @@ def ensure_collection_exists(
     collection_name: str, 
     vector_size: int = EMBEDDING_VECTOR_SIZE
 ):
-    """Ensure the collection exists, create if it doesn't."""
+    """Make sure the collection exists, create if needed"""
     try:
-        # Check if collection exists
         collections = client.get_collections()
         collection_exists = any(col.name == collection_name for col in collections.collections)
         
@@ -107,7 +100,7 @@ def ensure_collection_exists(
             client.create_collection(
                 collection_name=collection_name,
                 vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
-                # FIX: Explicitly pass default OptimizersConfig to satisfy Pydantic v2 strictness
+                # had to add explicit OptimizersConfig for pydantic v2 compatibility
                 optimizers_config=OptimizersConfig(
                     deleted_threshold=0.2,
                     vacuum_min_vector_number=100,
@@ -124,12 +117,9 @@ def ensure_collection_exists(
         raise
 
 
-# ============================================================================
-# Document Serialization (for JSON persistence)
-# ============================================================================
-
+# Document serialization helpers for JSON persistence
 def serialize_metadata(metadata: dict) -> dict:
-    """Handle complex metadata objects for JSON serialization."""
+    """Handle complex metadata objects for JSON serialization"""
     serialized = {}
     for key, value in metadata.items():
         if isinstance(value, (str, int, float, bool, type(None))):
@@ -142,12 +132,12 @@ def serialize_metadata(metadata: dict) -> dict:
 
 
 def deserialize_metadata(metadata: dict) -> dict:
-    """Reconstruct metadata from JSON."""
+    """Reconstruct metadata from JSON"""
     return metadata
 
 
 def serialize_documents(documents: List[Document]) -> List[dict]:
-    """Convert LangChain documents to JSON-serializable format."""
+    """Convert LangChain documents to JSON format"""
     return [
         {
             'page_content': doc.page_content,
@@ -158,7 +148,7 @@ def serialize_documents(documents: List[Document]) -> List[dict]:
 
 
 def deserialize_documents(doc_data: List[dict]) -> List[Document]:
-    """Convert JSON data back to LangChain documents."""
+    """Convert JSON data back to LangChain documents"""
     return [
         Document(
             page_content=item['page_content'],
@@ -169,7 +159,7 @@ def deserialize_documents(doc_data: List[dict]) -> List[Document]:
 
 
 def save_documents_to_json(documents: List[Document], file_path: str):
-    """Safely save documents to JSON file."""
+    """Save documents to JSON file"""
     try:
         serialized = serialize_documents(documents)
         with open(file_path, 'w', encoding='utf-8') as f:
@@ -180,7 +170,7 @@ def save_documents_to_json(documents: List[Document], file_path: str):
 
 
 def load_documents_from_json(file_path: str) -> List[Document]:
-    """Safely load documents from JSON file."""
+    """Load documents from JSON file"""
     try:
         if not os.path.exists(file_path):
             return []
@@ -193,7 +183,7 @@ def load_documents_from_json(file_path: str) -> List[Document]:
 
 
 def save_metadata_to_file(file_metadata: dict):
-    """Save file metadata to persistent storage."""
+    """Save file metadata to disk"""
     try:
         metadata_path = os.path.join(QDRANT_STORAGE_PATH, "file_metadata.json")
         with open(metadata_path, 'w', encoding='utf-8') as f:
@@ -203,7 +193,7 @@ def save_metadata_to_file(file_metadata: dict):
 
 
 def load_metadata_from_file() -> dict:
-    """Load file metadata from persistent storage."""
+    """Load file metadata from disk"""
     try:
         metadata_path = os.path.join(QDRANT_STORAGE_PATH, "file_metadata.json")
         if os.path.exists(metadata_path):
@@ -214,10 +204,7 @@ def load_metadata_from_file() -> dict:
     return {}
 
 
-# ============================================================================
-# Contextual Chunk Enrichment Functions
-# ============================================================================
-
+# Contextual enrichment functions
 def extract_document_metadata(filename: str, documents: List[Document]) -> dict:
     """
     Extract metadata from the full document for enrichment.
@@ -229,14 +216,14 @@ def extract_document_metadata(filename: str, documents: List[Document]) -> dict:
     Returns:
         Dictionary with document-level metadata
     """
-    # Generate document summary (first 500 chars)
+    # generate doc summary from first 500 chars
     full_text = " ".join([doc.page_content for doc in documents])
     doc_summary = full_text[:500].strip() + "..." if len(full_text) > 500 else full_text
     
-    # Extract potential title (first meaningful line)
+    # try to extract a title from first meaningful line
     lines = full_text.split('\n')
     potential_title = None
-    for line in lines[:10]:  # Check first 10 lines
+    for line in lines[:10]:
         if line.strip() and len(line.strip()) > 10:
             potential_title = line.strip()[:100]
             break
@@ -257,7 +244,7 @@ def enrich_chunk_with_context(
     doc_metadata: dict
 ) -> Document:
     """
-    Enrich a text chunk with surrounding context and document metadata.
+    Add surrounding context and document metadata to a chunk
     
     Args:
         chunk: The chunk to enrich
@@ -270,7 +257,7 @@ def enrich_chunk_with_context(
     """
     enriched_content = []
     
-    # Add document context header
+    # add document header
     enriched_content.append(f"[Document: {doc_metadata['filename']}]")
     
     if INCLUDE_DOC_SUMMARY and chunk_index == 0:
@@ -278,31 +265,30 @@ def enrich_chunk_with_context(
     
     enriched_content.append(f"[Chunk {chunk_index + 1} of {len(all_chunks)}]")
     
-    # Add preceding context (if available)
+    # add preceding context if available
     if chunk_index > 0:
         prev_chunk = all_chunks[chunk_index - 1]
         prev_context = prev_chunk.page_content[-CONTEXT_WINDOW_CHARS:].strip()
         if prev_context:
             enriched_content.append(f"[Previous Context: ...{prev_context}]")
     
-    # Add the main chunk content
     enriched_content.append("")
     enriched_content.append(chunk.page_content)
     enriched_content.append("")
     
-    # Add following context (if available)
+    # add following context if available
     if chunk_index < len(all_chunks) - 1:
         next_chunk = all_chunks[chunk_index + 1]
         next_context = next_chunk.page_content[:CONTEXT_WINDOW_CHARS].strip()
         if next_context:
             enriched_content.append(f"[Next Context: {next_context}...]")
     
-    # Create enriched document
+    # create enriched doc
     enriched_doc = Document(
         page_content="\n".join(enriched_content),
         metadata={
             **chunk.metadata,
-            'original_content': chunk.page_content,  # Keep original for reference
+            'original_content': chunk.page_content,
             'enriched': True,
             'doc_title': doc_metadata['title'],
             'chunk_position': f"{chunk_index + 1}/{len(all_chunks)}"
@@ -318,7 +304,7 @@ def apply_contextual_enrichment(
     filename: str
 ) -> List[Document]:
     """
-    Apply contextual enrichment to all text chunks.
+    Apply contextual enrichment to all text chunks
     
     Args:
         documents: Original loaded documents
@@ -333,10 +319,10 @@ def apply_contextual_enrichment(
     
     logger.debug(f"[ENRICHMENT] Applying contextual enrichment to {len(texts)} chunks from {filename}")
     
-    # Extract document-level metadata
+    # extract doc-level metadata
     doc_metadata = extract_document_metadata(filename, documents)
     
-    # Enrich each chunk
+    # enrich each chunk
     enriched_texts = []
     for i, chunk in enumerate(texts):
         enriched_chunk = enrich_chunk_with_context(chunk, texts, i, doc_metadata)
@@ -347,13 +333,10 @@ def apply_contextual_enrichment(
     return enriched_texts
 
 
-# ============================================================================
-# Reranking Functions
-# ============================================================================
-
+# Reranking functions
 def rerank_documents(query: str, documents: List[Document]) -> List[Document]:
     """
-    Rerank retrieved documents using cross-encoder model.
+    Rerank retrieved documents using cross-encoder
     
     Args:
         query: The search query
@@ -368,23 +351,23 @@ def rerank_documents(query: str, documents: List[Document]) -> List[Document]:
     logger.debug(f"[RERANKING] Reranking {len(documents)} documents for query: '{query[:50]}...'")
     
     try:
-        # Prepare query-document pairs for reranking
-        # Use original content if available (before enrichment)
+        # prepare query-document pairs
+        # use original content if available (before enrichment)
         pairs = [
             [query, doc.metadata.get('original_content', doc.page_content)] 
             for doc in documents
         ]
         
-        # Get relevance scores
+        # get relevance scores
         scores = reranker.predict(pairs)
         
-        # Combine documents with scores
+        # combine docs with scores
         doc_scores = list(zip(documents, scores))
         
-        # Sort by score (descending)
+        # sort by score descending
         doc_scores.sort(key=lambda x: x[1], reverse=True)
         
-        # Filter by minimum relevance score
+        # filter by min relevance score
         filtered_docs = [
             (doc, score) for doc, score in doc_scores 
             if score >= MIN_RELEVANCE_SCORE
@@ -395,10 +378,10 @@ def rerank_documents(query: str, documents: List[Document]) -> List[Document]:
         if filtered_docs:
             logger.debug(f"[RERANKING] Score range: {filtered_docs[0][1]:.3f} (best) to {filtered_docs[-1][1]:.3f} (worst)")
         
-        # Take top K after reranking
+        # take top K after reranking
         reranked_docs = [doc for doc, score in filtered_docs[:RETRIEVAL_K_AFTER_RERANK]]
         
-        # Add reranking score to metadata for debugging
+        # add reranking score to metadata for debugging
         for i, (doc, score) in enumerate(filtered_docs[:RETRIEVAL_K_AFTER_RERANK]):
             reranked_docs[i].metadata['rerank_score'] = float(score)
             reranked_docs[i].metadata['rerank_position'] = i + 1
@@ -410,15 +393,10 @@ def rerank_documents(query: str, documents: List[Document]) -> List[Document]:
         return documents[:RETRIEVAL_K_AFTER_RERANK]
 
 
-# ============================================================================
-# Custom Reranking Retriever
-# ============================================================================
-
-# Replace the RerankingRetriever class in services.py (around line 300)
-
+# Custom retriever with reranking
 class RerankingRetriever(BaseRetriever):
     """
-    Custom retriever that applies cross-encoder reranking to results.
+    Custom retriever that applies cross-encoder reranking to results
     """
     
     base_retriever: BaseRetriever
@@ -432,12 +410,11 @@ class RerankingRetriever(BaseRetriever):
         *, 
         run_manager: CallbackManagerForRetrieverRun = None
     ) -> List[Document]:
-        """Get documents relevant to query, with reranking."""
-        # Get initial documents from base retriever
-        # Don't pass run_manager if it's causing issues
+        """Get documents relevant to query, with reranking applied"""
+        # get initial docs from base retriever
         docs = self.base_retriever.get_relevant_documents(query)
         
-        # Apply reranking
+        # apply reranking
         reranked_docs = rerank_documents(query, docs)
         
         return reranked_docs
@@ -448,17 +425,14 @@ class RerankingRetriever(BaseRetriever):
         *, 
         run_manager: CallbackManagerForRetrieverRun = None
     ) -> List[Document]:
-        """Async version - falls back to sync for now."""
+        """Async version - falls back to sync for now"""
         return self._get_relevant_documents(query, run_manager=run_manager)
 
 
-# ============================================================================
-# Document Processing
-# ============================================================================
-
+# Document processing
 def process_document_sync(temp_file_path: str, filename: str) -> tuple:
     """
-    Synchronous document processing function to run in thread pool.
+    Process a document file and return processed data
     Now includes contextual enrichment.
     
     Args:
@@ -474,7 +448,7 @@ def process_document_sync(temp_file_path: str, filename: str) -> tuple:
     start_time = time.time()
     
     try:
-        # Determine the loader based on file extension
+        # pick the right loader based on extension
         ext = os.path.splitext(filename)[1].lower()
         if ext == ".pdf":
             loader = UnstructuredPDFLoader(temp_file_path)
@@ -485,13 +459,13 @@ def process_document_sync(temp_file_path: str, filename: str) -> tuple:
         documents = loader.load()
         logger.info(f"Document loading complete for {filename}. Loaded {len(documents)} documents.")
 
-        # Filter out empty documents
+        # filter out empty docs
         documents = [doc for doc in documents if doc.page_content.strip()]
         
         if not documents:
             raise ValueError(f"No readable content found in {filename}. The file might be empty or corrupted.")
 
-        # Using RecursiveCharacterTextSplitter for better chunking
+        # chunk the documents
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=CHUNK_SIZE,
             chunk_overlap=CHUNK_OVERLAP,
@@ -502,13 +476,13 @@ def process_document_sync(temp_file_path: str, filename: str) -> tuple:
         texts = text_splitter.split_documents(documents)
         logger.info(f"Text chunking complete for {filename}. Created {len(texts)} text chunks.")
 
-        # Filter out very short chunks
+        # filter out tiny chunks
         texts = [text for text in texts if len(text.page_content.strip()) > MIN_CHUNK_LENGTH]
         
         if not texts:
             raise ValueError(f"No meaningful text chunks created from {filename}.")
         
-        # Apply contextual enrichment
+        # apply contextual enrichment
         texts = apply_contextual_enrichment(documents, texts, filename)
 
         processing_time = time.time() - start_time
@@ -522,15 +496,12 @@ def process_document_sync(temp_file_path: str, filename: str) -> tuple:
         raise FileProcessingError(filename, str(e))
 
 
-# ============================================================================
-# Document Store Class
-# ============================================================================
-
+# Main document store class
 class DocumentStore:
     """
-    Manages document storage, vector store, and QA chain.
+    Document storage manager with vector store and QA chain.
     Thread-safe with persistent storage support.
-    Now includes reranking and contextual enrichment.
+    Includes reranking and contextual enrichment.
     """
     
     def __init__(self):
@@ -543,22 +514,22 @@ class DocumentStore:
         self.conversation_history = []
         self._lock = threading.RLock()
         
-        # Initialize persistent storage
+        # init persistent storage
         self._initialize_persistent_storage()
     
     def _initialize_persistent_storage(self):
-        """Initialize Qdrant with persistent storage and load existing data."""
+        """Initialize Qdrant with persistent storage and load existing data"""
         try:
-            # Initialize Qdrant client with persistent storage
+            # init Qdrant client
             self.qdrant_client = initialize_qdrant_client()
             
-            # Ensure collection exists
+            # make sure collection exists
             ensure_collection_exists(self.qdrant_client, COLLECTION_NAME)
             
-            # Load existing complete state
+            # load existing state
             self._load_complete_state()
             
-            # If we have existing data, rebuild the QA chain
+            # rebuild QA chain if we have data
             if self.file_metadata:
                 logger.debug(f"Found {len(self.file_metadata)} files in persistent storage")
                 logger.debug(f"Loaded {len(self.all_documents)} documents and {len(self.all_texts)} text chunks")
@@ -572,7 +543,7 @@ class DocumentStore:
             self.qdrant_client = None
 
     def ensure_client_is_ready(self):
-        """Checks if the Qdrant client is None and re-initializes it if needed."""
+        """Check if Qdrant client is ready, reinit if needed"""
         if self.qdrant_client is None:
             logger.info("[RE-INIT] Client is None. Attempting to re-initialize Qdrant client and collection...")
             try:
@@ -584,20 +555,20 @@ class DocumentStore:
                 self.qdrant_client = None
     
     def _save_complete_state(self):
-        """Save all documents, texts, and metadata to JSON files."""
+        """Save all documents, texts, and metadata to JSON"""
         try:
             base_path = QDRANT_STORAGE_PATH
             os.makedirs(base_path, exist_ok=True)
             
-            # Save documents
+            # save docs
             docs_path = os.path.join(base_path, "documents.json")
             save_documents_to_json(self.all_documents, docs_path)
             
-            # Save text chunks  
+            # save text chunks  
             texts_path = os.path.join(base_path, "text_chunks.json")
             save_documents_to_json(self.all_texts, texts_path)
             
-            # Save metadata
+            # save metadata
             save_metadata_to_file(self.file_metadata)
             
             logger.debug(f"Saved complete state: {len(self.all_documents)} documents, {len(self.all_texts)} text chunks")
@@ -606,19 +577,19 @@ class DocumentStore:
             logger.error(f"Error saving complete state: {e}")
     
     def _load_complete_state(self):
-        """Load all documents, texts, and metadata from JSON files."""
+        """Load all documents, texts, and metadata from JSON"""
         try:
             base_path = QDRANT_STORAGE_PATH
             
-            # Load documents
+            # load docs
             docs_path = os.path.join(base_path, "documents.json")
             self.all_documents = load_documents_from_json(docs_path)
             
-            # Load text chunks
+            # load text chunks
             texts_path = os.path.join(base_path, "text_chunks.json")
             self.all_texts = load_documents_from_json(texts_path)
             
-            # Load metadata
+            # load metadata
             self.file_metadata = load_metadata_from_file()
             
         except Exception as e:
@@ -628,15 +599,15 @@ class DocumentStore:
             self.file_metadata = {}
     
     def add_documents(self, documents, texts, filename, file_info):
-        """Add new documents and texts to the store with thread safety and persistence"""
+        """Add new documents and texts to the store"""
         with self._lock:
-            # Ensure client is ready before attempting ingestion
+            # make sure client is ready
             self.ensure_client_is_ready() 
             
             if self.qdrant_client is None:
                 raise QdrantConnectionFailed(QDRANT_STORAGE_PATH, "Client initialization failed")
 
-            # Add metadata to track which file each document comes from
+            # add metadata to track which file each doc comes from
             for doc in documents:
                 doc.metadata.update({
                     'source_file': filename,
@@ -653,7 +624,7 @@ class DocumentStore:
             self.all_documents.extend(documents)
             self.all_texts.extend(texts)
             
-            # Store enhanced file metadata
+            # store file metadata
             self.file_metadata[filename] = {
                 'num_documents': len(documents),
                 'num_chunks': len(texts),
@@ -668,7 +639,7 @@ class DocumentStore:
                 logger.debug(f"Starting Qdrant upsert process for {len(texts)} chunks")
                 
                 try:
-                    # Generate vectors
+                    # generate vectors
                     text_contents = [text.page_content for text in texts]
                     vectors = embeddings.embed_documents(text_contents)
                     
@@ -677,7 +648,7 @@ class DocumentStore:
 
                     logger.debug(f"Vectorization complete. Created {len(vectors)} vectors")
 
-                    # Create PointStructs for Qdrant
+                    # create points for Qdrant
                     points = [
                         PointStruct(
                             id=str(uuid.uuid4()),
@@ -687,7 +658,7 @@ class DocumentStore:
                         for vector, text in zip(vectors, texts)
                     ]
 
-                    # Upsert the points
+                    # upsert the points
                     logger.debug(f"Calling qdrant_client.upsert for {len(points)} points")
                     self.qdrant_client.upsert(
                         collection_name=COLLECTION_NAME,
@@ -696,27 +667,26 @@ class DocumentStore:
                     )
                     logger.info(f"Successfully upserted {len(points)} points to Qdrant.")
                     
-                    # Verify count
+                    # verify count
                     final_count_result = self.qdrant_client.count(COLLECTION_NAME, exact=True)
-                    logger.debug("--- QDRANT PERSISTENCE CHECK ---") # Changed
-                    logger.debug(f"Upsert Complete. Current Qdrant Count: {final_count_result.count}") # Changed
+                    logger.debug("--- QDRANT PERSISTENCE CHECK ---")
+                    logger.debug(f"Upsert Complete. Current Qdrant Count: {final_count_result.count}")
                     logger.debug("--------------------------------")
                     
                 except QdrantUpsertFailed:
-                    # Re-raise our custom exception
                     raise
                 except Exception as e:
                     logger.critical(f"!!! CRITICAL QDRANT ERROR during upsert: {e}")
                     raise QdrantUpsertFailed(COLLECTION_NAME, len(points) if 'points' in locals() else len(texts), str(e))
             
-            # Save to persistent storage (JSON)
+            # save to persistent storage (JSON)
             self._save_complete_state()
             
-            # Rebuild the vector store and QA chain
+            # rebuild vector store and QA chain
             self._rebuild_qa_chain()
     
     def remove_file(self, filename: str) -> bool:
-        """Remove a specific file and its associated documents"""
+        """Remove a file and its associated documents"""
         with self._lock:
             if filename not in self.file_metadata:
                 return False
@@ -727,7 +697,7 @@ class DocumentStore:
                 raise QdrantConnectionFailed(QDRANT_STORAGE_PATH, "Client not available")
 
             try:
-                # Remove from Qdrant
+                # remove from Qdrant
                 if self.qdrant_client:
                     self.qdrant_client.delete(
                         collection_name=COLLECTION_NAME,
@@ -742,19 +712,19 @@ class DocumentStore:
                         wait=True
                     )
                 
-                # Remove documents and texts
+                # remove docs and texts
                 self.all_documents = [doc for doc in self.all_documents 
                                     if doc.metadata.get('source_file') != filename]
                 self.all_texts = [text for text in self.all_texts 
                                 if text.metadata.get('source_file') != filename]
                 
-                # Remove file metadata
+                # remove file metadata
                 del self.file_metadata[filename]
                 
-                # Save updated state
+                # save updated state
                 self._save_complete_state()
                 
-                # Rebuild the QA chain
+                # rebuild QA chain
                 self._rebuild_qa_chain()
                 return True
                 
@@ -799,7 +769,7 @@ Answer:"""
                 self.qa_chain = None
                 return
             
-            # Adjust retrieval K based on whether reranking is enabled
+            # adjust retrieval k based on reranking
             retrieval_k = RETRIEVAL_K_BEFORE_RERANK if ENABLE_RERANKING else RETRIEVAL_K
             
             if self.all_texts and self.qdrant_vectorstore:
@@ -823,10 +793,9 @@ Answer:"""
                 self.qa_chain = None
                 return
             
-            # Wrap retriever with reranking if enabled
+            # wrap retriever with reranking if enabled
             if ENABLE_RERANKING:
                 logger.info("QA chain will use cross-encoder reranking")
-                # Create a custom retriever that applies reranking
                 final_retriever = RerankingRetriever(base_retriever=base_retriever)
             else:
                 final_retriever = base_retriever
@@ -845,7 +814,7 @@ Answer:"""
             self.qa_chain = None
     
     def has_documents(self) -> bool:
-        """Check if the store has any documents."""
+        """Check if the store has any documents"""
         with self._lock:
             return len(self.all_texts) > 0
     
@@ -867,43 +836,43 @@ Answer:"""
             ]
     
     def clear_all(self):
-        """Clear all stored documents and completely reset persistent storage."""
+        """Clear all stored documents and reset persistent storage"""
         with self._lock:
             try:
-                # 1. Clear in-memory data first
+                # clear in-memory data first
                 self.all_documents = []
                 self.all_texts = []
                 self.file_metadata = {}
                 self.conversation_history = []
                 self.qa_chain = None
                 
-                # 2. Complete Persistent Storage Reset
+                # reset persistent storage
                 if self.qdrant_client:
                     logger.critical(f"Resetting persistent Qdrant/JSON storage at {QDRANT_STORAGE_PATH}...")
                     
                     try:
-                        # --- STEP 1: Delete the Vectorstore to release its connection ---
+                        # delete vectorstore to release connection
                         if self.qdrant_vectorstore:
                             del self.qdrant_vectorstore
                             self.qdrant_vectorstore = None
                         
-                        # --- STEP 2: Delete the Client and force garbage collection ---
+                        # delete client and force GC
                         del self.qdrant_client 
                         self.qdrant_client = None
                         
-                        # Force garbage collection to release file locks immediately
+                        # force garbage collection to release file locks
                         gc.collect()
                         
-                        # Small delay to ensure OS releases locks (Windows can be slow)
+                        # small delay for OS to release locks (Windows can be slow)
                         time.sleep(0.5)
                         
-                        # --- STEP 3: Delete the storage directory ---
+                        # delete storage directory
                         if os.path.exists(QDRANT_STORAGE_PATH):
                             try:
                                 shutil.rmtree(QDRANT_STORAGE_PATH)
                                 logger.info("Persistent storage successfully deleted.")
                             except PermissionError as pe:
-                                # If still locked, try deleting individual files
+                                # if still locked, try file-by-file deletion
                                 logger.warning(f"Permission error deleting folder, attempting file-by-file deletion: {pe}")
                                 for root, dirs, files in os.walk(QDRANT_STORAGE_PATH, topdown=False):
                                     for name in files:
@@ -916,23 +885,23 @@ Answer:"""
                                             os.rmdir(os.path.join(root, name))
                                         except Exception as e:
                                             logger.warning(f"Could not delete directory {name}: {e}")
-                                # Try one more time to remove the root
+                                # try one more time to remove root
                                 try:
                                     shutil.rmtree(QDRANT_STORAGE_PATH)
                                 except:
                                     logger.warning("Some files may remain locked. They will be overwritten on next initialization.")
                         
-                        # --- STEP 4: Immediately re-initialize with fresh storage ---
+                        # reinitialize with fresh storage
                         logger.info("Re-initializing fresh Qdrant client and collection...")
                         self._initialize_persistent_storage()
                         logger.info("Fresh Qdrant storage initialized successfully.")
                         
                     except Exception as e:
                         logger.error(f"Error during storage reset: {e}")
-                        # Ensure client is None so it can be re-initialized
+                        # ensure client is None so it can be re-initialized
                         self.qdrant_client = None
                         self.qdrant_vectorstore = None
-                        # Try to initialize fresh storage anyway
+                        # try to init fresh storage anyway
                         try:
                             self._initialize_persistent_storage()
                         except Exception as init_error:

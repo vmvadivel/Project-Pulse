@@ -26,18 +26,16 @@ from exceptions import (
 )
 
 
-# ============================================================================
-# File Validation
-# ============================================================================
+# File validation
 
 def get_file_type_from_extension(filename: str) -> str:
-    """Get file type from file extension."""
+    """Get file type from extension"""
     ext = os.path.splitext(filename)[1].lower()
     return FILE_TYPE_MAP.get(ext, 'Unknown')
 
 
 def format_file_size(size_bytes: int) -> str:
-    """Format file size in human readable format."""
+    """Format file size in human readable format"""
     if size_bytes == 0:
         return "0 B"
     size_names = ["B", "KB", "MB", "GB"]
@@ -53,7 +51,7 @@ def validate_uploaded_file(
     max_size: int = MAX_FILE_SIZE
 ) -> None:
     """
-    Validate uploaded file before processing.
+    Validate uploaded file before processing
     
     Args:
         file: The uploaded file
@@ -65,25 +63,23 @@ def validate_uploaded_file(
         UnsupportedFileType: If file type not supported
         FileAlreadyExists: If filename already exists
     """
-    # Check file size
+    # check file size
     if file.size and file.size > max_size:
         raise FileTooLarge(file.filename, file.size, max_size)
     
-    # Check file extension
+    # check extension
     ext = os.path.splitext(file.filename)[1].lower()
     
     if ext not in SUPPORTED_EXTENSIONS:
         file_type = get_file_type_from_extension(file.filename)
         raise UnsupportedFileType(file.filename, file_type)
     
-    # Check if file already exists
+    # check if file already exists
     if file.filename in existing_files:
         raise FileAlreadyExists(file.filename)
 
 
-# ============================================================================
-# Retry Logic with Exponential Backoff
-# ============================================================================
+# Retry logic with exponential backoff
 
 def retry_with_backoff(
     max_retries: int = 3,
@@ -93,7 +89,7 @@ def retry_with_backoff(
     exceptions: tuple = (Exception,)
 ):
     """
-    Decorator for retrying functions with exponential backoff.
+    Decorator for retrying functions with exponential backoff
     
     Args:
         max_retries: Maximum number of retry attempts
@@ -120,10 +116,10 @@ def retry_with_backoff(
                     if retries >= max_retries:
                         raise
                     
-                    # Calculate delay with exponential backoff
+                    # calculate delay with exponential backoff
                     delay = min(base_delay * (exponential_base ** (retries - 1)), max_delay)
                     
-                    # Add jitter to prevent thundering herd
+                    # add jitter to prevent thundering herd
                     import random
                     delay = delay * (0.5 + random.random())
                     
@@ -135,14 +131,12 @@ def retry_with_backoff(
     return decorator
 
 
-# ============================================================================
-# Simple In-Memory Rate Limiter (for demo/portfolio)
-# ============================================================================
+# Simple in-memory rate limiter (for demo/portfolio)
 
 class SimpleRateLimiter:
     """
     Simple in-memory rate limiter using sliding window.
-    Suitable for single-instance demo deployments.
+    Good for single-instance demo deployments.
     
     For production with multiple instances, use Redis-backed rate limiting.
     """
@@ -158,11 +152,11 @@ class SimpleRateLimiter:
         window_seconds: int
     ) -> tuple[bool, Optional[int]]:
         """
-        Check if request is allowed under rate limit.
+        Check if request is allowed under rate limit
         
         Args:
             identifier: Unique identifier (IP address, user ID, etc.)
-            max_requests: Maximum requests allowed in window
+            max_requests: Max requests allowed in window
             window_seconds: Time window in seconds
             
         Returns:
@@ -172,18 +166,18 @@ class SimpleRateLimiter:
             now = time.time()
             window_start = now - window_seconds
             
-            # Get requests for this identifier
+            # get requests for this identifier
             requests = self._requests[identifier]
             
-            # Remove requests outside the window
+            # remove requests outside window
             requests[:] = [req_time for req_time in requests if req_time > window_start]
             
-            # Check if under limit
+            # check if under limit
             if len(requests) < max_requests:
                 requests.append(now)
                 return True, None
             else:
-                # Calculate when the oldest request will expire
+                # calculate when oldest request expires
                 oldest_request = requests[0]
                 retry_after = int(oldest_request + window_seconds - now) + 1
                 return False, retry_after
@@ -200,7 +194,7 @@ class SimpleRateLimiter:
             now = time.time()
             cutoff = now - max_age_seconds
             
-            # Remove identifiers with no recent requests
+            # remove identifiers with no recent requests
             identifiers_to_remove = []
             for identifier, requests in self._requests.items():
                 if not requests or all(req_time < cutoff for req_time in requests):
@@ -210,7 +204,7 @@ class SimpleRateLimiter:
                 del self._requests[identifier]
 
 
-# Global rate limiter instance
+# global rate limiter instance
 rate_limiter = SimpleRateLimiter()
 
 
@@ -221,12 +215,12 @@ def check_rate_limit(
     window_seconds: int = 3600
 ) -> None:
     """
-    Check rate limit for an identifier and endpoint.
+    Check rate limit for an identifier and endpoint
     
     Args:
-        identifier: Unique identifier (IP address, etc.)
+        identifier: Unique identifier (IP, etc.)
         endpoint: Endpoint name (for different limits per endpoint)
-        max_requests: Maximum requests allowed
+        max_requests: Max requests allowed
         window_seconds: Time window in seconds
         
     Raises:
@@ -242,19 +236,17 @@ def check_rate_limit(
         )
 
 
-# ============================================================================
-# Time and Date Formatting
-# ============================================================================
+# Time and date formatting
 
 def format_timestamp(timestamp: Optional[datetime] = None) -> str:
-    """Format timestamp in ISO format."""
+    """Format timestamp in ISO format"""
     if timestamp is None:
         timestamp = datetime.now()
     return timestamp.isoformat()
 
 
 def format_duration(seconds: float) -> str:
-    """Format duration in human-readable format."""
+    """Format duration in human-readable format"""
     if seconds < 1:
         return f"{seconds*1000:.0f}ms"
     elif seconds < 60:
@@ -269,13 +261,11 @@ def format_duration(seconds: float) -> str:
         return f"{hours}h {minutes}m"
 
 
-# ============================================================================
-# String Sanitization
-# ============================================================================
+# String sanitization
 
 def sanitize_filename(filename: str) -> str:
     """
-    Sanitize filename to prevent directory traversal and other issues.
+    Sanitize filename to prevent directory traversal and other issues
     
     Args:
         filename: Original filename
@@ -283,15 +273,15 @@ def sanitize_filename(filename: str) -> str:
     Returns:
         Sanitized filename
     """
-    # Remove path components
+    # remove path components
     filename = os.path.basename(filename)
     
-    # Replace problematic characters
+    # replace problematic chars
     invalid_chars = '<>:"|?*\\'
     for char in invalid_chars:
         filename = filename.replace(char, '_')
     
-    # Limit length
+    # limit length
     name, ext = os.path.splitext(filename)
     if len(name) > 200:
         name = name[:200]
@@ -300,29 +290,17 @@ def sanitize_filename(filename: str) -> str:
 
 
 def truncate_string(text: str, max_length: int = 100, suffix: str = "...") -> str:
-    """
-    Truncate string to maximum length with suffix.
-    
-    Args:
-        text: Text to truncate
-        max_length: Maximum length including suffix
-        suffix: Suffix to add if truncated
-        
-    Returns:
-        Truncated string
-    """
+    """Truncate string to max length with suffix"""
     if len(text) <= max_length:
         return text
     return text[:max_length - len(suffix)] + suffix
 
 
-# ============================================================================
-# Data Validation Helpers
-# ============================================================================
+# Data validation helpers
 
 def is_valid_query(query: str, min_length: int = 1, max_length: int = 1000) -> tuple[bool, Optional[str]]:
     """
-    Validate query string.
+    Validate query string
     
     Args:
         query: Query string to validate
@@ -344,21 +322,10 @@ def is_valid_query(query: str, min_length: int = 1, max_length: int = 1000) -> t
     return True, None
 
 
-# ============================================================================
-# Statistics Helpers
-# ============================================================================
+# Stats helpers
 
 def calculate_percentile(values: list, percentile: float) -> float:
-    """
-    Calculate percentile of a list of values.
-    
-    Args:
-        values: List of numeric values
-        percentile: Percentile to calculate (0-100)
-        
-    Returns:
-        Percentile value
-    """
+    """Calculate percentile of a list of values"""
     if not values:
         return 0.0
     
@@ -375,7 +342,7 @@ def calculate_percentile(values: list, percentile: float) -> float:
 
 
 def calculate_average(values: list) -> float:
-    """Calculate average of a list of values."""
+    """Calculate average of a list of values"""
     if not values:
         return 0.0
     return sum(values) / len(values)

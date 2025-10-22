@@ -1,9 +1,3 @@
-"""
-Configuration management for RAG System.
-Centralizes all settings, environment variables, and model initialization.
-includes Cross-Encoder Reranking and Contextual Enrichment configuration.
-"""
-
 import os
 import logging
 from concurrent.futures import ThreadPoolExecutor
@@ -14,7 +8,7 @@ from exceptions import MissingAPIKey
 
 logger = logging.getLogger(__name__)
 
-# Attempt to import Ollama, required for local LLM support
+# Try to import Ollama for local LLM support
 try:
     from langchain_community.llms import Ollama
     from requests.exceptions import ConnectionError
@@ -23,60 +17,42 @@ except ImportError:
     OLLAMA_AVAILABLE = False
     logger.warning("Ollama is not installed or dependencies are missing. Only Groq will be available.")
 except ConnectionError:
-    # This might trigger later, but useful to catch here if possible
     OLLAMA_AVAILABLE = False
     logger.warning("Cannot connect to Ollama. Falling back to Groq.")
 
-# Load environment variables from .env file
+# Load env vars
 load_dotenv()
 
-# ============================================================================
-# Debug and Development Configuration
-# ============================================================================
-
-# Enable debug mode for verbose logging and detailed error messages
+# Debug mode for verbose logging and detailed error messages
 DEBUG_MODE = os.getenv("DEBUG_MODE", "false").lower() == "true"
 
 # Enable debug endpoints (e.g., /debug/qdrant)
 ENABLE_DEBUG_ENDPOINTS = os.getenv("ENABLE_DEBUG_ENDPOINTS", "false").lower() == "true"
 
-
-# ============================================================================
-# API Keys and Authentication
-# ============================================================================
-
-# General Configuration
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama").lower() # Default to ollama
+# General config
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama").lower() # default to ollama
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-# Check for required API keys based on provider priority
+# Check for required API keys based on provider
 if LLM_PROVIDER == "groq" or (LLM_PROVIDER == "ollama" and not OLLAMA_AVAILABLE):
     if not GROQ_API_KEY:
         raise MissingAPIKey("Groq LLM")
 
-# ============================================================================
-# Storage Configuration
-# ============================================================================
-
+# Storage config
 QDRANT_STORAGE_PATH = os.getenv("QDRANT_STORAGE_PATH", "./qdrant_storage")
 COLLECTION_NAME = "all_documents"
 
 
-# ============================================================================
-# File Upload Configuration
-# ============================================================================
-
+# File upload settings
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
 TEMP_UPLOAD_DIR = "temp"
 
-# Supported file extensions
 SUPPORTED_EXTENSIONS = [
     '.pdf', '.doc', '.docx', '.txt', '.csv', '.xlsx', 
     '.xls', '.pptx', '.ppt', '.html', '.htm', '.md', 
     '.json', '.xml'
 ]
 
-# File type mapping
 FILE_TYPE_MAP = {
     '.pdf': 'PDF',
     '.doc': 'Word',
@@ -95,11 +71,7 @@ FILE_TYPE_MAP = {
 }
 
 
-# ============================================================================
-# Document Processing Configuration
-# ============================================================================
-
-# Text chunking settings
+# Text chunking
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
 MIN_CHUNK_LENGTH = 20
@@ -107,12 +79,7 @@ MIN_CHUNK_LENGTH = 20
 # Text splitter separators
 TEXT_SEPARATORS = ["\n\n", "\n", ". ", " ", ""]
 
-
-# ============================================================================
-# Retrieval Configuration
-# ============================================================================
-
-# Number of documents to retrieve
+# Number of docs to retrieve
 RETRIEVAL_K = 10
 
 # Ensemble retriever weights [BM25, Vector]
@@ -121,62 +88,45 @@ ENSEMBLE_WEIGHTS = [0.4, 0.6]
 # Conversation history length
 MAX_CONVERSATION_HISTORY = 20
 
-
-# ============================================================================
-# Model Configuration
-# ============================================================================
-
 # LLM settings
 LLM_MODEL_NAME = "llama-3.3-70b-versatile"
 LLM_TEMPERATURE = 0
 
-# Ollama Settings
+# Ollama settings
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-# NOTE: Using host.docker.internal to access Windows host from Docker container
 
 # Embedding model
 EMBEDDING_MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
 EMBEDDING_VECTOR_SIZE = 768
 
-# Thread pool for CPU-intensive operations
+# Thread pool for CPU-intensive ops
 MAX_WORKERS = 4
 
-# ============================================================================
-# Reranking Configuration
-# ============================================================================
-
-# Enable/disable reranking
+# Reranking config
 ENABLE_RERANKING = os.getenv("ENABLE_RERANKING", "true").lower() == "true"
 
-# Reranker model
 RERANKER_MODEL_NAME = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
-# Number of documents to retrieve before reranking
+# Docs to retrieve before reranking
 RETRIEVAL_K_BEFORE_RERANK = 20
 
-# Number of documents to keep after reranking
+# Docs to keep after reranking
 RETRIEVAL_K_AFTER_RERANK = 7
 
-# Minimum relevance score to include (0.0 to 1.0)
+# Min relevance score (0.0 to 1.0)
 MIN_RELEVANCE_SCORE = 0.3
 
-# ============================================================================
-# Contextual Enrichment Configuration
-# ============================================================================
-
-# Enable contextual chunk enrichment
+# Contextual chunk enrichment
 ENABLE_CONTEXTUAL_ENRICHMENT = os.getenv("ENABLE_CONTEXTUAL_ENRICHMENT", "true").lower() == "true"
 
-# Number of characters to include as context (before and after)
+# Context window size (chars before and after)
 CONTEXT_WINDOW_CHARS = 200
 
-# Whether to include document summary in each chunk
+# Include doc summary in each chunk
 INCLUDE_DOC_SUMMARY = True
 
-# ============================================================================
-# Initialize Reranker (if enabled)
-# ============================================================================
+# Initialize reranker if enabled
 
 reranker = None
 if ENABLE_RERANKING:
@@ -190,18 +140,16 @@ if ENABLE_RERANKING:
         ENABLE_RERANKING = False
         reranker = None
 
-# Thread pool for CPU-intensive operations
+# Thread pool
 executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
-# ============================================================================
-# Model Initialization
-# ============================================================================
+# Model initialization
 
 def initialize_llm():
-    """Initializes the LLM with Ollama as primary and Groq as fallback."""
+    """Initialize LLM with Ollama as primary and Groq as fallback"""
     global LLM_PROVIDER
     
-    # 1. Attempt Ollama (Primary)
+    # try Ollama first
     if LLM_PROVIDER == "ollama" and OLLAMA_AVAILABLE:
         try:
             llm_instance = Ollama(
@@ -209,32 +157,31 @@ def initialize_llm():
                 base_url=OLLAMA_BASE_URL,
                 temperature=LLM_TEMPERATURE
             )
-            # A quick test call to ensure the service is actually running
-            # Ollama needs to be accessible from the Docker container
+            # quick test call to ensure service is running
+            # Ollama needs to be accessible from Docker container
             llm_instance.invoke("test connectivity", config={"timeout": 5}) 
             
             logger.info(f"Successfully initialized Ollama LLM: {OLLAMA_MODEL} at {OLLAMA_BASE_URL}")
             return llm_instance
         except (ConnectionError, Exception) as e:
             logger.warning(f"Failed to connect to Ollama at {OLLAMA_BASE_URL} ({type(e).__name__}). Falling back to Groq.")
-            # Fall through to Groq initialization
+            # fall through to Groq
 
-    # 2. Initialize Groq (Secondary / Explicit choice)
+    # use Groq as fallback
     if GROQ_API_KEY:
         llm_instance = ChatGroq(
             temperature=LLM_TEMPERATURE,
             model_name=LLM_MODEL_NAME,
             api_key=GROQ_API_KEY
         )
-        # Update the provider variable for runtime tracking
+        # update provider variable for runtime tracking
         LLM_PROVIDER = "groq"
         logger.info(f"Using Groq LLM (Fallback or Explicit): {LLM_MODEL_NAME}")
         return llm_instance
     else:
-        # If Ollama failed and Groq key is missing, this is a fatal configuration error
+        # if Ollama failed and Groq key is missing
         raise MissingAPIKey("Groq LLM (Ollama fallback failed or not selected)")
 
-# Initialize LLM (Must be called after all variables are set)
 llm = initialize_llm()
 
 # Initialize HuggingFace embeddings
@@ -246,9 +193,7 @@ embeddings = HuggingFaceEmbeddings(
 executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
 
-# ============================================================================
-# Application Metadata
-# ============================================================================
+# App metadata
 
 APP_TITLE = "Enhanced Multi-File RAG System with Persistence"
 APP_DESCRIPTION = "High-performance RAG system with persistent storage and concurrent user support"
@@ -265,15 +210,13 @@ APP_FEATURES = [
     "Contextual Chunk Enrichment" if ENABLE_CONTEXTUAL_ENRICHMENT else None
 ]
 
-# Remove None values from features
+# remove None values
 APP_FEATURES = [f for f in APP_FEATURES if f is not None]
 
-# ============================================================================
-# Helper Functions
-# ============================================================================
+# Helper functions
 
 def get_storage_info() -> dict:
-    """Get storage configuration information."""
+    """Get storage config info"""
     return {
         "type": "persistent",
         "path": QDRANT_STORAGE_PATH,
@@ -282,7 +225,7 @@ def get_storage_info() -> dict:
 
 
 def get_app_info() -> dict:
-    """Get application information."""
+    """Get app information"""
     return {
         "title": APP_TITLE,
         "version": APP_VERSION,

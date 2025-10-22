@@ -1,8 +1,3 @@
-"""
-Custom exceptions and error handling for RAG System.
-All application-specific exceptions with consistent error responses.
-"""
-
 from datetime import datetime
 from typing import Optional, Dict, Any
 from fastapi import Request, status
@@ -14,12 +9,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-# ============================================================================
-# Base Exception
-# ============================================================================
-
 class BaseRAGException(Exception):
-    """Base exception for all RAG system errors."""
+    """Base exception for all RAG system errors"""
     
     def __init__(
         self,
@@ -36,7 +27,7 @@ class BaseRAGException(Exception):
         super().__init__(self.message)
     
     def to_dict(self, request_id: str = None) -> Dict[str, Any]:
-        """Convert exception to dictionary for JSON response."""
+        """Convert exception to dict for JSON response"""
         return {
             "error": {
                 "type": self.__class__.__name__,
@@ -49,12 +40,9 @@ class BaseRAGException(Exception):
         }
 
 
-# ============================================================================
 # Configuration Errors (500)
-# ============================================================================
-
 class MissingAPIKey(BaseRAGException):
-    """Raised when required API key is not found in environment."""
+    """Raised when required API key is not found in environment"""
     
     def __init__(self, service: str = "Groq LLM"):
         super().__init__(
@@ -69,7 +57,7 @@ class MissingAPIKey(BaseRAGException):
 
 
 class InvalidAPIKey(BaseRAGException):
-    """Raised when API key is invalid or rejected by service."""
+    """API key is invalid or rejected by service"""
     
     def __init__(self, service: str = "Groq LLM"):
         super().__init__(
@@ -84,7 +72,7 @@ class InvalidAPIKey(BaseRAGException):
 
 
 class InvalidConfiguration(BaseRAGException):
-    """Raised when system configuration is invalid."""
+    """System configuration is invalid"""
     
     def __init__(self, config_item: str, reason: str):
         super().__init__(
@@ -99,12 +87,10 @@ class InvalidConfiguration(BaseRAGException):
         )
 
 
-# ============================================================================
 # File Errors (400, 413, 422)
-# ============================================================================
 
 class UnsupportedFileType(BaseRAGException):
-    """Raised when uploaded file type is not supported."""
+    """Raised when uploaded file type is not supported"""
     
     def __init__(self, filename: str, detected_type: str = "unknown"):
         supported_types = ["pdf", "txt", "doc", "docx", "csv", "xlsx", "pptx", "html", "md", "json", "xml"]
@@ -122,7 +108,7 @@ class UnsupportedFileType(BaseRAGException):
 
 
 class FileTooLarge(BaseRAGException):
-    """Raised when uploaded file exceeds size limit."""
+    """File exceeds size limit"""
     
     def __init__(self, filename: str, size_bytes: int, max_size_bytes: int):
         super().__init__(
@@ -139,7 +125,7 @@ class FileTooLarge(BaseRAGException):
 
 
 class FileCorrupted(BaseRAGException):
-    """Raised when file cannot be parsed or is corrupted."""
+    """File cannot be parsed or is corrupted"""
     
     def __init__(self, filename: str, reason: str = "Unknown"):
         super().__init__(
@@ -155,7 +141,7 @@ class FileCorrupted(BaseRAGException):
 
 
 class FileProcessingError(BaseRAGException):
-    """Raised when file processing fails."""
+    """Raised when file processing fails"""
     
     def __init__(self, filename: str, error: str):
         super().__init__(
@@ -171,7 +157,7 @@ class FileProcessingError(BaseRAGException):
 
 
 class FileAlreadyExists(BaseRAGException):
-    """Raised when attempting to upload a file that already exists."""
+    """File with this name already exists"""
     
     def __init__(self, filename: str):
         super().__init__(
@@ -185,12 +171,11 @@ class FileAlreadyExists(BaseRAGException):
         )
 
 
-# ============================================================================
+
 # Vector Store Errors (500, 503)
-# ============================================================================
 
 class QdrantConnectionFailed(BaseRAGException):
-    """Raised when connection to Qdrant fails."""
+    """Connection to Qdrant failed"""
     
     def __init__(self, storage_path: str, reason: str = "Connection timeout"):
         super().__init__(
@@ -207,7 +192,7 @@ class QdrantConnectionFailed(BaseRAGException):
 
 
 class QdrantUpsertFailed(BaseRAGException):
-    """Raised when upserting documents to Qdrant fails."""
+    """Failed to upsert documents to Qdrant"""
     
     def __init__(self, collection_name: str, num_points: int, error: str):
         super().__init__(
@@ -224,7 +209,7 @@ class QdrantUpsertFailed(BaseRAGException):
 
 
 class CollectionNotFound(BaseRAGException):
-    """Raised when Qdrant collection doesn't exist."""
+    """Qdrant collection doesn't exist"""
     
     def __init__(self, collection_name: str):
         super().__init__(
@@ -239,7 +224,7 @@ class CollectionNotFound(BaseRAGException):
 
 
 class VectorStoreSyncError(BaseRAGException):
-    """Raised when vector store synchronization fails."""
+    """Vector store synchronization failed"""
     
     def __init__(self, operation: str, error: str):
         super().__init__(
@@ -254,12 +239,10 @@ class VectorStoreSyncError(BaseRAGException):
         )
 
 
-# ============================================================================
-# LLM Errors (429, 500, 503, 504)
-# ============================================================================
+# LLM Errors
 
 class LLMServiceUnavailable(BaseRAGException):
-    """Raised when LLM service is unavailable."""
+    """LLM service is unavailable"""
     
     def __init__(self, provider: str = "Groq", reason: str = "Service unavailable"):
         super().__init__(
@@ -276,7 +259,7 @@ class LLMServiceUnavailable(BaseRAGException):
 
 
 class LLMRateLimitExceeded(BaseRAGException):
-    """Raised when LLM API rate limit is exceeded."""
+    """LLM API rate limit exceeded"""
     
     def __init__(self, provider: str = "Groq", retry_after: int = 60):
         super().__init__(
@@ -292,7 +275,7 @@ class LLMRateLimitExceeded(BaseRAGException):
 
 
 class LLMInvalidResponse(BaseRAGException):
-    """Raised when LLM returns invalid or unexpected response."""
+    """LLM returned invalid or unexpected response"""
     
     def __init__(self, error: str):
         super().__init__(
@@ -307,7 +290,7 @@ class LLMInvalidResponse(BaseRAGException):
 
 
 class LLMTimeout(BaseRAGException):
-    """Raised when LLM request times out."""
+    """LLM request timed out"""
     
     def __init__(self, timeout_seconds: int = 30):
         super().__init__(
@@ -321,12 +304,8 @@ class LLMTimeout(BaseRAGException):
         )
 
 
-# ============================================================================
-# Retrieval Errors (400, 500)
-# ============================================================================
-
 class NoDocumentsIngested(BaseRAGException):
-    """Raised when user tries to query empty knowledge base."""
+    """User tried to query empty knowledge base"""
     
     def __init__(self):
         super().__init__(
@@ -340,14 +319,14 @@ class NoDocumentsIngested(BaseRAGException):
 
 
 class RetrievalFailed(BaseRAGException):
-    """Raised when document retrieval fails."""
+    """Document retrieval failed"""
     
     def __init__(self, query: str, error: str):
         super().__init__(
             message="Failed to retrieve relevant documents",
             error_code="RETRIEVAL_002",
             details={
-                "query": query[:100],  # Truncate for safety
+                "query": query[:100],  
                 "error": error,
                 "suggestion": "Please try rephrasing your query"
             },
@@ -356,7 +335,7 @@ class RetrievalFailed(BaseRAGException):
 
 
 class InsufficientContext(BaseRAGException):
-    """Raised when retrieved context is insufficient to answer query."""
+    """Retrieved context is insufficient to answer query"""
     
     def __init__(self, query: str):
         super().__init__(
@@ -366,16 +345,14 @@ class InsufficientContext(BaseRAGException):
                 "query": query[:100],
                 "suggestion": "Try rephrasing your question or upload more relevant documents"
             },
-            status_code=status.HTTP_200_OK  # Not an error, just insufficient data
+            status_code=status.HTTP_200_OK 
         )
 
 
-# ============================================================================
 # Validation Errors (400)
-# ============================================================================
 
 class InvalidQuery(BaseRAGException):
-    """Raised when query is invalid."""
+    """Query is invalid"""
     
     def __init__(self, reason: str):
         super().__init__(
@@ -390,7 +367,7 @@ class InvalidQuery(BaseRAGException):
 
 
 class InvalidFileMetadata(BaseRAGException):
-    """Raised when file metadata is invalid."""
+    """File metadata is invalid"""
     
     def __init__(self, field: str, reason: str):
         super().__init__(
@@ -406,7 +383,7 @@ class InvalidFileMetadata(BaseRAGException):
 
 
 class InvalidRequest(BaseRAGException):
-    """Raised when request is invalid."""
+    """Request is invalid"""
     
     def __init__(self, reason: str):
         super().__init__(
@@ -420,19 +397,15 @@ class InvalidRequest(BaseRAGException):
         )
 
 
-# ============================================================================
-# Error Handlers Registration
-# ============================================================================
-
+# Error handler registration
 def register_error_handlers(app):
-    """Register all error handlers with FastAPI app."""
+    """Register all error handlers with FastAPI app"""
     
     @app.exception_handler(BaseRAGException)
     async def rag_exception_handler(request: Request, exc: BaseRAGException):
-        """Handle all custom RAG exceptions."""
+        """Handle custom RAG exceptions"""
         request_id = str(uuid.uuid4())
         
-        # Log the error (will be enhanced with proper logging later)
         logger.error(
             f"{exc.error_code} - {exc.message} | Request ID: {request_id}",
             extra={'error_code': exc.error_code, 'request_id': request_id}
@@ -447,10 +420,10 @@ def register_error_handlers(app):
     
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
-        """Handle FastAPI validation errors."""
+        """Handle FastAPI validation errors"""
         request_id = str(uuid.uuid4())
         
-        # Extract field-specific errors
+        # extract field-specific errors
         errors = []
         for error in exc.errors():
             errors.append({
@@ -483,17 +456,15 @@ def register_error_handlers(app):
     
     @app.exception_handler(Exception)
     async def general_exception_handler(request: Request, exc: Exception):
-        """Catch-all handler for unexpected exceptions."""
+        """Catch-all for unexpected exceptions"""
         request_id = str(uuid.uuid4())
         
-        # Log the full exception (will be enhanced with proper logging later)
         logger.critical(
             f"UNHANDLED EXCEPTION | Request ID: {request_id} | Type: {type(exc).__name__}",
-            exc_info=True,  # This includes full traceback automatically
+            exc_info=True,
             extra={'request_id': request_id}
         )
         
-        # Don't expose internal error details to users in production
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={
@@ -503,7 +474,7 @@ def register_error_handlers(app):
                     "code": "INTERNAL_ERROR",
                     "details": {
                         "suggestion": "Please try again. If the problem persists, contact support.",
-                        "error_type": type(exc).__name__  # Include type for debugging
+                        "error_type": type(exc).__name__  
                     },
                     "timestamp": datetime.now().isoformat(),
                     "request_id": request_id

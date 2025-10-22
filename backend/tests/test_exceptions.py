@@ -5,12 +5,16 @@ Run this BEFORE integrating into main.py to catch any issues.
 Usage: python test_exceptions.py
 """
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from exceptions import *
 import json
 
 
 def test_exception_creation():
-    """Test that all exceptions can be created without errors."""
+    """Test that all exceptions can be created without errors"""
     print("Testing exception creation...")
     
     exceptions_to_test = [
@@ -40,14 +44,14 @@ def test_exception_creation():
     
     for exc in exceptions_to_test:
         try:
-            # Test that exception has required attributes
+            # check that exception has required attributes
             assert hasattr(exc, 'message')
             assert hasattr(exc, 'error_code')
             assert hasattr(exc, 'status_code')
             assert hasattr(exc, 'details')
             assert hasattr(exc, 'timestamp')
             
-            # Test that to_dict() works
+            # test that to_dict() works
             error_dict = exc.to_dict()
             assert 'error' in error_dict
             assert 'type' in error_dict['error']
@@ -64,14 +68,14 @@ def test_exception_creation():
 
 
 def test_exception_serialization():
-    """Test that exceptions can be serialized to JSON."""
+    """Test that exceptions can be serialized to JSON"""
     print("Testing JSON serialization...")
     
     exc = UnsupportedFileType("malware.exe", "executable")
     error_dict = exc.to_dict("test-request-123")
     
     try:
-        # Try to serialize to JSON
+        # try to serialize to JSON
         json_str = json.dumps(error_dict, indent=2)
         print("Sample error response:")
         print(json_str)
@@ -83,7 +87,7 @@ def test_exception_serialization():
 
 
 def test_status_codes():
-    """Verify that status codes are correct."""
+    """Verify that status codes are correct"""
     print("Testing HTTP status codes...")
     
     status_code_tests = [
@@ -110,7 +114,7 @@ def test_status_codes():
 
 
 def test_error_details():
-    """Verify that error details contain helpful information."""
+    """Verify that error details contain helpful information"""
     print("Testing error details...")
     
     exc = UnsupportedFileType("document.exe", "executable")
