@@ -1,8 +1,7 @@
-
 class ChatInterface {
     constructor() {
-        //this.apiBase = 'http://127.0.0.1:8000';
-        this.apiBase = '/api';
+        this.apiBase = 'http://127.0.0.1:8000';
+        //this.apiBase = '/api';
         this.settings = {
             theme: 'light',
             fontSize: 16,
@@ -12,9 +11,6 @@ class ChatInterface {
         this.init();
     }
 
-    /**
-     * Initialize the chat interface
-     */
     init() {
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => this.setup());
@@ -23,9 +19,6 @@ class ChatInterface {
         }
     }
 
-    /**
-     * Setup the interface
-     */
     setup() {
         try {
             this.initializeElements();
@@ -38,44 +31,38 @@ class ChatInterface {
         }
     }
 
-    /**
-     * Initialize DOM elements
-     */
     initializeElements() {
-        // Core elements
+        // core elements
         this.userInput = document.getElementById('user-input');
         this.sendButton = document.getElementById('send-button');
         this.chatMessages = document.getElementById('chat-messages');
         this.typingIndicator = document.getElementById('typing-indicator');
         this.charCount = document.getElementById('char-count');
         
-        // Theme elements
+        // theme
         this.themeToggle = document.getElementById('theme-toggle');
         this.themeIcon = document.getElementById('theme-icon');
         
-        // Settings elements
+        // settings
         this.settingsBtn = document.getElementById('settings-btn');
         this.settingsPanel = document.getElementById('settings-panel');
         this.settingsOverlay = document.getElementById('settings-overlay');
         this.closeSettings = document.getElementById('close-settings');
         this.clearChatBtn = document.getElementById('clear-chat');
         
-        // Settings controls
+        // settings controls
         this.fontSizeSelect = document.getElementById('font-size-select');
         this.autoScrollToggle = document.getElementById('auto-scroll');
         this.clearAllDataBtn = document.getElementById('clear-all-data');
 
-        // Validate required elements
+        // check if required elements exist
         if (!this.userInput || !this.sendButton || !this.chatMessages) {
             throw new Error('Required DOM elements not found');
         }
     }
 
-    /**
-     * Setup all event listeners
-     */
     setupEventListeners() {
-        // Send message
+        // send message
         this.sendButton.addEventListener('click', () => this.sendMessage());
         
         this.userInput.addEventListener('keydown', (e) => {
@@ -85,16 +72,16 @@ class ChatInterface {
             }
         });
 
-        // Input handling
+        // input handling
         this.userInput.addEventListener('input', () => {
             this.updateCharCount();
             this.adjustTextareaHeight();
         });
 
-        // Theme toggle
+        // theme toggle
         this.themeToggle?.addEventListener('click', () => this.toggleTheme());
 
-        // Settings
+        // settings panel
         this.settingsBtn?.addEventListener('click', () => this.showSettings());
         this.closeSettings?.addEventListener('click', () => this.hideSettings());
         this.settingsOverlay?.addEventListener('click', () => this.hideSettings());
@@ -102,17 +89,14 @@ class ChatInterface {
         this.fontSizeSelect?.addEventListener('change', () => this.updateFontSize());
         this.autoScrollToggle?.addEventListener('change', () => this.updateAutoScroll());
         
-        // Clear actions
+        // clear actions
         this.clearChatBtn?.addEventListener('click', () => this.clearChat());
         this.clearAllDataBtn?.addEventListener('click', () => this.clearAllData());
 
-        // Prevent settings panel click from closing it
+        // prevent settings panel click from closing it
         this.settingsPanel?.addEventListener('click', (e) => e.stopPropagation());
     }
 
-    /**
-     * Send message to API
-     */
     async sendMessage() {
         const messageText = this.userInput.value.trim();
 
@@ -160,9 +144,6 @@ class ChatInterface {
         }
     }
 
-    /**
-     * Add message to chat
-     */
     addMessage(text, sender, options = {}) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${sender}-message`;
@@ -202,9 +183,6 @@ class ChatInterface {
         this.applyFontSize();
     }
 
-    /**
-     * Copy message to clipboard
-     */
     copyMessage(button) {
         const messageText = button.closest('.message-content')
             .querySelector('.message-text').textContent;
@@ -230,9 +208,6 @@ class ChatInterface {
             });
     }
 
-    /**
-     * Show/hide typing indicator
-     */
     showTypingIndicator() {
         this.typingIndicator?.classList.add('show');
         if (this.settings.autoScroll) {
@@ -244,9 +219,7 @@ class ChatInterface {
         this.typingIndicator?.classList.remove('show');
     }
 
-    /**
-     * Theme management
-     */
+    // theme stuff
     toggleTheme() {
         this.settings.theme = this.settings.theme === 'light' ? 'dark' : 'light';
         this.applyTheme();
@@ -256,7 +229,7 @@ class ChatInterface {
     applyTheme() {
         document.documentElement.setAttribute('data-theme', this.settings.theme);
         
-        // Update theme icon
+        // update icon
         if (this.themeIcon) {
             this.themeIcon.src = this.settings.theme === 'light' 
                 ? 'assets/icons/sun.svg' 
@@ -264,9 +237,7 @@ class ChatInterface {
         }
     }
 
-    /**
-     * Settings management
-     */
+    // settings panel
     showSettings() {
         this.settingsPanel?.classList.add('show');
         this.settingsOverlay?.classList.add('show');
@@ -296,9 +267,7 @@ class ChatInterface {
         this.saveSettings();
     }
 
-    /**
-     * Save/load settings
-     */
+    // save/load settings
     saveSettings() {
         localStorage.setItem('chat-settings', JSON.stringify(this.settings));
     }
@@ -313,16 +282,14 @@ class ChatInterface {
             console.error('Failed to load settings:', error);
         }
 
-        // Apply settings to UI
+        // apply to UI
         this.applyTheme();
         if (this.fontSizeSelect) this.fontSizeSelect.value = this.settings.fontSize;
         if (this.autoScrollToggle) this.autoScrollToggle.checked = this.settings.autoScroll;
         this.applyFontSize();
     }
 
-    /**
-     * Clear chat
-     */
+    // clear chat
     clearChat() {
         if (!confirm('Are you sure you want to clear the current chat?')) {
             return;
@@ -350,9 +317,7 @@ class ChatInterface {
         this.hideSettings();
     }
 
-    /**
-     * Utility functions
-     */
+    // utility functions
     setSendButtonState(enabled) {
         if (this.sendButton) {
             this.sendButton.disabled = !enabled;
@@ -408,9 +373,7 @@ class ChatInterface {
         return div.innerHTML.replace(/\n/g, '<br>');
     }
 
-    /**
-     * Connection monitoring
-     */
+    // connection monitoring
     setupConnectionMonitoring() {
         const updateStatus = (isOnline) => {
             const indicator = document.querySelector('.status-indicator');
@@ -426,9 +389,9 @@ class ChatInterface {
     }
 }
 
-// Initialize chat interface
+// initialize
 const chatInterface = new ChatInterface();
 
-// Global error handling
+// error handling
 window.addEventListener('error', (e) => console.error('Error:', e.error));
 window.addEventListener('unhandledrejection', (e) => console.error('Unhandled rejection:', e.reason));

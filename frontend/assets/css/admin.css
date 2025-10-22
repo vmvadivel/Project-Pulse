@@ -1,28 +1,26 @@
-/**
- * Standalone Admin Dashboard CSS
- * Complete dark theme with all required styles
- * Removed dependency with style.css
+/* Admin Dashboard CSS
+ * Dark theme
  */
 
-/* CSS Variables - Define all colors and sizes */
+/* CSS variables */
 :root {
-    /* Primary Colors */
+    /* primary colors */
     --primary-color: #5a67d8;
     --primary-hover: #4c51bf;
     --primary-light: #667eea;
     
-    /* Background Colors */
+    /* backgrounds */
     --bg-primary: #1a202c;
     --bg-secondary: #2d3748;
     --bg-tertiary: #2a3441;
     --bg-card: #2d3748;
     
-    /* Text Colors */
+    /* text */
     --text-primary: #f7fafc;
     --text-secondary: #cbd5e0;
     --text-muted: #a0aec0;
     
-    /* Status Colors */
+    /* status */
     --success: #48bb78;
     --success-bg: rgba(72, 187, 120, 0.2);
     --error: #fc8181;
@@ -30,29 +28,27 @@
     --info: #90cdf4;
     --info-bg: rgba(144, 205, 244, 0.2);
     
-    /* Border Colors */
+    /* borders */
     --border-color: rgba(90, 103, 216, 0.2);
     --border-hover: rgba(90, 103, 216, 0.4);
     
-    /* Shadows */
+    /* shadows */
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
     --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.2);
     --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.3);
     
-    /* Transitions */
+    /* transitions */
     --transition-fast: 0.2s ease;
     --transition-normal: 0.3s ease;
     --transition-slow: 0.5s ease;
 }
 
-/* Reset */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-/* Body Styles */
 body {
     background: linear-gradient(135deg, var(--bg-primary) 0%, #0f1419 100%) !important;
     min-height: 100vh !important;
@@ -66,7 +62,6 @@ body {
     color: var(--text-primary);
 }
 
-/* Main Dashboard Container */
 .admin-dashboard {
     width: 100%;
     max-width: 1200px;
@@ -83,17 +78,10 @@ body {
 }
 
 @keyframes slideIn {
-    from { 
-        opacity: 0; 
-        transform: translateY(30px); 
-    }
-    to { 
-        opacity: 1; 
-        transform: translateY(0); 
-    }
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
-/* Header Section */
 .admin-header {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
     padding: 2rem;
@@ -152,7 +140,6 @@ body {
     font-size: 1.1rem;
 }
 
-/* Content Area */
 .admin-content {
     padding: 2rem;
     display: grid;
@@ -162,26 +149,11 @@ body {
     flex-grow: 1;
 }
 
-/* Custom Scrollbar */
-.admin-content::-webkit-scrollbar {
-    width: 8px;
-}
+.admin-content::-webkit-scrollbar { width: 8px; }
+.admin-content::-webkit-scrollbar-track { background: rgba(45, 55, 72, 0.5); border-radius: 4px; }
+.admin-content::-webkit-scrollbar-thumb { background: var(--primary-color); border-radius: 4px; }
+.admin-content::-webkit-scrollbar-thumb:hover { background: var(--primary-hover); }
 
-.admin-content::-webkit-scrollbar-track {
-    background: rgba(45, 55, 72, 0.5);
-    border-radius: 4px;
-}
-
-.admin-content::-webkit-scrollbar-thumb {
-    background: var(--primary-color);
-    border-radius: 4px;
-}
-
-.admin-content::-webkit-scrollbar-thumb:hover {
-    background: var(--primary-hover);
-}
-
-/* Statistics Grid */
 .stats-grid {
     grid-column: 1 / -1;
     display: grid;
@@ -226,7 +198,6 @@ body {
     letter-spacing: 0.5px;
 }
 
-/* Section Styles */
 .admin-section {
     background: var(--bg-card);
     border-radius: 15px;
@@ -271,7 +242,6 @@ body {
     margin-bottom: 0;
 }
 
-/* Upload Section */
 .upload-section {
     display: flex;
     flex-direction: column;
@@ -315,14 +285,8 @@ body {
 }
 
 @keyframes pulse {
-    0%, 100% { 
-        opacity: 1; 
-        transform: scale(1);
-    }
-    50% { 
-        opacity: 0.7; 
-        transform: scale(1.05);
-    }
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.05); }
 }
 
 .upload-text {
@@ -337,11 +301,8 @@ body {
     font-size: 0.9rem;
 }
 
-#file-input {
-    display: none;
-}
+#file-input { display: none; }
 
-/* Progress Bar */
 .progress-bar {
     width: 100%;
     height: 6px;
@@ -360,7 +321,6 @@ body {
     border-radius: 3px;
 }
 
-/* Loading Spinner */
 .loading-container {
     display: none;
     align-items: center;
@@ -389,7 +349,6 @@ body {
     font-size: 0.9rem;
 }
 
-/* Buttons */
 .btn {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
     color: var(--text-primary);
@@ -412,9 +371,7 @@ body {
     box-shadow: 0 10px 25px rgba(90, 103, 216, 0.3);
 }
 
-.btn:active {
-    transform: translateY(0);
-}
+.btn:active { transform: translateY(0); }
 
 .btn-icon {
     width: 16px;
@@ -430,7 +387,6 @@ body {
     box-shadow: 0 10px 25px rgba(229, 62, 62, 0.3);
 }
 
-/* Status Messages */
 .status-message {
     padding: 1rem;
     border-radius: 10px;
@@ -469,7 +425,6 @@ body {
     border: 1px solid rgba(144, 205, 244, 0.3);
 }
 
-/* File List */
 .file-list {
     overflow-y: auto;
     border-radius: 10px;
@@ -477,23 +432,10 @@ body {
     flex-grow: 1;
 }
 
-.file-list::-webkit-scrollbar {
-    width: 6px;
-}
-
-.file-list::-webkit-scrollbar-track {
-    background: transparent;
-    border-radius: 3px;
-}
-
-.file-list::-webkit-scrollbar-thumb {
-    background: var(--primary-color);
-    border-radius: 3px;
-}
-
-.file-list::-webkit-scrollbar-thumb:hover {
-    background: var(--primary-hover);
-}
+.file-list::-webkit-scrollbar { width: 6px; }
+.file-list::-webkit-scrollbar-track { background: transparent; border-radius: 3px; }
+.file-list::-webkit-scrollbar-thumb { background: var(--primary-color); border-radius: 3px; }
+.file-list::-webkit-scrollbar-thumb:hover { background: var(--primary-hover); }
 
 .file-item {
     display: flex;
@@ -506,14 +448,8 @@ body {
 }
 
 @keyframes fadeInUp {
-    from { 
-        opacity: 0; 
-        transform: translateY(20px); 
-    }
-    to { 
-        opacity: 1; 
-        transform: translateY(0); 
-    }
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .file-item:hover {
@@ -522,13 +458,9 @@ body {
     transform: translateY(-1px);
 }
 
-.file-item:last-child {
-    border-bottom: none;
-}
+.file-item:last-child { border-bottom: none; }
 
-.file-info {
-    flex-grow: 1;
-}
+.file-info { flex-grow: 1; }
 
 .file-name {
     color: var(--text-primary);
@@ -603,9 +535,7 @@ body {
     box-shadow: 0 2px 10px rgba(229, 62, 62, 0.2);
 }
 
-.delete-btn:active {
-    transform: scale(0.98);
-}
+.delete-btn:active { transform: scale(0.98); }
 
 .delete-btn-icon {
     width: 14px;
@@ -613,7 +543,6 @@ body {
     filter: brightness(0) saturate(100%) invert(61%) sepia(72%) saturate(448%) hue-rotate(314deg) brightness(103%) contrast(98%);
 }
 
-/* Empty State */
 .empty-state {
     text-align: center;
     color: var(--text-muted);
@@ -633,11 +562,8 @@ body {
     opacity: 0.3;
 }
 
-.empty-state p {
-    font-style: italic;
-}
+.empty-state p { font-style: italic; }
 
-/* Connection Status */
 #connection-status {
     position: absolute;
     top: 15px;
@@ -667,43 +593,14 @@ body {
     100% { transform: scale(1.5); opacity: 0; }
 }
 
-/* Responsive Design */
+/* responsive */
 @media (max-width: 768px) {
-    body {
-        padding: 0.5rem !important;
-    }
-    
-    .admin-content {
-        grid-template-columns: 1fr;
-        gap: 1.5rem;
-        padding: 1.5rem;
-    }
-    
-    .admin-header h1 {
-        font-size: 2rem;
-    }
-    
-    .admin-header-content {
-        flex-direction: column;
-        text-align: center;
-    }
-    
-    .header-text {
-        text-align: center;
-    }
-    
-    .file-details {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.5rem;
-    }
-    
-    .file-actions {
-        margin-top: 0.5rem;
-    }
-    
-    .file-item {
-        flex-direction: column;
-        align-items: stretch;
-    }
+    body { padding: 0.5rem !important; }
+    .admin-content { grid-template-columns: 1fr; gap: 1.5rem; padding: 1.5rem; }
+    .admin-header h1 { font-size: 2rem; }
+    .admin-header-content { flex-direction: column; text-align: center; }
+    .header-text { text-align: center; }
+    .file-details { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+    .file-actions { margin-top: 0.5rem; }
+    .file-item { flex-direction: column; align-items: stretch; }
 }

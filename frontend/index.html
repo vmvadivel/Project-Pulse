@@ -5,11 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Virtual Buddy - AI Assistant</title>
     <link rel="stylesheet" href="assets/css/style.css">
-    <meta name="description" content="Virtual Buddy - Your intelligent AI assistant for document analysis and Q&A">
 </head>
 <body>
-    <!-- Theme Toggle Button -->
-    <button id="theme-toggle" class="theme-toggle-btn" title="Toggle Theme" aria-label="Toggle theme">
+    <!-- Theme toggle -->
+    <button id="theme-toggle" class="theme-toggle-btn" title="Toggle Theme">
         <img src="assets/icons/sun.svg" alt="Theme" class="theme-icon" id="theme-icon">
     </button>
 
@@ -28,16 +27,16 @@
                     </div>
                 </div>
                 <div class="header-actions">
-                    <button class="header-btn" id="clear-chat" title="Clear Chat" aria-label="Clear chat">
+                    <button class="header-btn" id="clear-chat" title="Clear Chat">
                         <img src="assets/icons/clear.svg" alt="Clear" class="btn-icon">
                     </button>
-                    <button class="header-btn" id="settings-btn" title="Settings" aria-label="Settings">
+                    <button class="header-btn" id="settings-btn" title="Settings">
                         <img src="assets/icons/settings.svg" alt="Settings" class="btn-icon">
                     </button>
                 </div>
             </div>
 
-            <!-- Messages Area -->
+            <!-- Messages -->
             <div class="chat-messages" id="chat-messages">
                 <div class="message bot-message welcome-message">
                     <div class="message-avatar">
@@ -57,7 +56,7 @@
                 </div>
             </div>
 
-            <!-- Typing Indicator -->
+            <!-- Typing indicator -->
             <div class="typing-indicator" id="typing-indicator">
                 <div class="message-avatar">
                     <img src="assets/icons/bot.svg" alt="Bot" class="avatar-icon">
@@ -71,7 +70,7 @@
                 </div>
             </div>
 
-            <!-- Input Area -->
+            <!-- Input -->
             <div class="chat-input-area">
                 <div class="input-container">
                     <div class="input-wrapper">
@@ -80,9 +79,8 @@
                             placeholder="Type your message here..." 
                             rows="1"
                             maxlength="2000"
-                            aria-label="Message input"
                         ></textarea>
-                        <button id="send-button" class="send-btn" title="Send Message" aria-label="Send message">
+                        <button id="send-button" class="send-btn" title="Send">
                             <img src="assets/icons/send.svg" alt="Send" class="send-icon">
                         </button>
                     </div>
@@ -94,17 +92,17 @@
             </div>
         </div>
 
-        <!-- Settings Panel -->
+        <!-- Settings -->
         <div class="settings-panel" id="settings-panel">
             <div class="settings-header">
                 <h3>Settings</h3>
-                <button class="close-settings" id="close-settings" aria-label="Close settings">&times;</button>
+                <button class="close-settings" id="close-settings">&times;</button>
             </div>
             <div class="settings-content">
                 <div class="setting-group">
                     <label class="setting-label">
                         <span>Font Size</span>
-                        <select id="font-size-select" aria-label="Font size">
+                        <select id="font-size-select">
                             <option value="14">Small</option>
                             <option value="16" selected>Medium</option>
                             <option value="18">Large</option>
@@ -115,7 +113,7 @@
                     <label class="setting-label">
                         <span>Auto-scroll</span>
                         <div class="toggle-switch">
-                            <input type="checkbox" id="auto-scroll" checked aria-label="Auto-scroll toggle">
+                            <input type="checkbox" id="auto-scroll" checked>
                             <span class="slider"></span>
                         </div>
                     </label>
@@ -129,7 +127,7 @@
             </div>
         </div>
 
-        <!-- Settings Overlay -->
+        <!-- Settings overlay -->
         <div class="settings-overlay" id="settings-overlay"></div>
     </div>
 

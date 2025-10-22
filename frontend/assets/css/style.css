@@ -1,8 +1,6 @@
-/* ===========================
-   Theme Variables
-   =========================== */
-   :root {
-    /* Light Theme (Default) */
+/* Theme Variables */
+:root {
+    /* Light Theme */
     --primary-color: #6366f1;
     --primary-light: #8b5cf6;
     --background-color: #f8fafc;
@@ -34,9 +32,7 @@
     --bot-bubble: var(--card-background);
 }
 
-/* ===========================
-   Base Styles
-   =========================== */
+/* Base styles */
 * {
     margin: 0;
     padding: 0;
@@ -52,9 +48,7 @@ body {
     transition: background 0.3s ease, color 0.3s ease;
 }
 
-/* ===========================
-   Theme Toggle
-   =========================== */
+/* Theme toggle button */
 .theme-toggle-btn {
     position: fixed;
     top: 20px;
@@ -85,9 +79,7 @@ body {
     transition: transform 0.3s ease;
 }
 
-/* ===========================
-   Chat Layout
-   =========================== */
+/* Chat layout */
 .chat-app {
     height: 100vh;
     display: flex;
@@ -121,9 +113,7 @@ body {
     }
 }
 
-/* ===========================
-   Header
-   =========================== */
+/* Header */
 .chat-header {
     background: var(--user-bubble);
     padding: 20px;
@@ -207,9 +197,7 @@ body {
     filter: brightness(0) invert(1);
 }
 
-/* ===========================
-   Messages Area
-   =========================== */
+/* Messages area */
 .chat-messages {
     flex: 1;
     padding: 20px;
@@ -238,9 +226,7 @@ body {
     background: var(--text-color-muted);
 }
 
-/* ===========================
-   Message Styles
-   =========================== */
+/* Message styles */
 .message {
     display: flex;
     gap: 12px;
@@ -325,12 +311,12 @@ body {
     opacity: 0.7;
 }
 
-/* Bot message time - needs good contrast in both themes */
+/* Bot message time needs good contrast */
 .bot-message .message-time {
     color: var(--text-color-secondary);
 }
 
-/* User message time - white with transparency */
+/* User message time */
 .user-message .message-time {
     color: rgba(255, 255, 255, 0.8);
 }
@@ -399,9 +385,7 @@ body {
     height: 12px;
 }
 
-/* ===========================
-   Typing Indicator
-   =========================== */
+/* Typing indicator */
 .typing-indicator {
     display: none;
     gap: 12px;
@@ -452,9 +436,7 @@ body {
     }
 }
 
-/* ===========================
-   Input Area
-   =========================== */
+/* Input area */
 .chat-input-area {
     padding: 20px;
     background: var(--card-background);
@@ -546,9 +528,7 @@ body {
     opacity: 0.7;
 }
 
-/* ===========================
-   Settings Panel
-   =========================== */
+/* Settings panel */
 .settings-overlay {
     position: fixed;
     inset: 0;
@@ -723,9 +703,7 @@ input:checked + .slider:before {
     filter: brightness(0) invert(1);
 }
 
-/* ===========================
-   Responsive Design
-   =========================== */
+/* Responsive */
 @media (max-width: 768px) {
     .chat-app {
         padding: 10px;

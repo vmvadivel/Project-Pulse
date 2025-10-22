@@ -1,19 +1,16 @@
-/**
- * Enhanced Admin Dashboard JavaScript
- * Updated to work with the enhanced main.py backend
- * Features: Single file delete, performance monitoring, better error handling
- */
+// Admin Dashboard
+// Single file delete, performance monitoring, error handling
 
 class AdminDashboard {
     constructor() {
-        //this.apiBase = 'http://127.0.0.1:8000';
-        this.apiBase = '/api';
+        this.apiBase = 'http://127.0.0.1:8000';
+        //this.apiBase = '/api';
         this.maxRetries = 3;
         this.retryDelay = 1000;
         
-        // NEW: Define standard and upload timeouts (in milliseconds)
-        this.STANDARD_TIMEOUT_MS = 30000; // 30 seconds for fast operations
-        this.UPLOAD_TIMEOUT_MS = 180000;  // 3 minutes (180 seconds) for file ingestion
+        // timeouts in ms
+        this.STANDARD_TIMEOUT_MS = 30000; // 30 seconds
+        this.UPLOAD_TIMEOUT_MS = 180000;  // 3 minutes for file ingestion
 
         this.performanceStats = {
             totalUploads: 0,
@@ -21,7 +18,6 @@ class AdminDashboard {
             averageUploadTime: 0
         };
         
-        // Initialize when DOM is ready
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => this.init());
         } else {
@@ -29,11 +25,8 @@ class AdminDashboard {
         }
     }
 
-    /**
-     * Initialize the dashboard
-     */
     init() {
-        console.log('Initializing Enhanced Admin Dashboard...');
+        console.log('Initializing admin dashboard...');
         
         try {
             this.initializeElements();
@@ -42,37 +35,34 @@ class AdminDashboard {
             this.startAutoRefresh();
             this.checkBackendHealth();
             
-            console.log('Enhanced Admin Dashboard initialized successfully');
+            console.log('Admin dashboard initialized');
         } catch (error) {
             console.error('Failed to initialize dashboard:', error);
         }
     }
 
-    /**
-     * Initialize DOM elements
-     */
     initializeElements() {
-        // File input and upload area
+        // file input and upload area
         this.fileInput = document.getElementById('file-input');
         this.uploadArea = document.getElementById('upload-area');
         
-        // Status and progress elements
+        // status and progress
         this.uploadStatus = document.getElementById('upload-status');
         this.fileStatus = document.getElementById('file-status');
         this.loadingContainer = document.getElementById('loading-container');
         this.progressBar = document.getElementById('progress-bar');
         this.progressFill = document.getElementById('progress-fill');
         
-        // File list and buttons
+        // file list and buttons
         this.fileList = document.getElementById('file-list');
         this.clearAllBtn = document.getElementById('clear-all-btn');
         
-        // Statistics elements
+        // stats
         this.totalFilesEl = document.getElementById('total-files');
         this.totalDocumentsEl = document.getElementById('total-documents');
         this.totalChunksEl = document.getElementById('total-chunks');
 
-        // Validate required elements
+        // check required elements
         const requiredElements = [
             'fileInput', 'uploadArea', 'uploadStatus', 'fileStatus', 
             'fileList', 'clearAllBtn', 'totalFilesEl', 'totalDocumentsEl', 'totalChunksEl'
@@ -85,16 +75,13 @@ class AdminDashboard {
         }
     }
 
-    /**
-     * Setup all event listeners
-     */
     setupEventListeners() {
-        // Upload area click
+        // upload area click
         this.uploadArea.addEventListener('click', () => {
             this.fileInput.click();
         });
 
-        // File input change with file size validation
+        // file input change
         this.fileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
                 if (this.validateFiles(e.target.files)) {
@@ -103,7 +90,7 @@ class AdminDashboard {
             }
         });
 
-        // Enhanced drag and drop with file validation
+        // drag and drop
         this.uploadArea.addEventListener('dragover', (e) => {
             e.preventDefault();
             this.uploadArea.classList.add('drag-over');
@@ -125,16 +112,16 @@ class AdminDashboard {
             }
         });
 
-        // Clear all button
+        // clear all button
         this.clearAllBtn.addEventListener('click', () => {
             this.clearAllFiles();
         });
 
-        // Prevent default drag behaviors on document
+        // prevent default drag on document
         document.addEventListener('dragover', (e) => e.preventDefault());
         document.addEventListener('drop', (e) => e.preventDefault());
 
-        // Add keyboard shortcuts
+        // keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             // Ctrl+U for upload
             if (e.ctrlKey && e.key === 'u') {
@@ -149,9 +136,6 @@ class AdminDashboard {
         });
     }
 
-    /**
-     * Validate files before upload
-     */
     validateFiles(files) {
         const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
         const invalidFiles = [];
@@ -173,12 +157,8 @@ class AdminDashboard {
         return true;
     }
 
-    /**
-     * Check backend health
-     */
     async checkBackendHealth() {
         try {
-            // Uses the default (standard) timeout
             const response = await this.fetchWithRetry(`${this.apiBase}/health`); 
             if (response.ok) {
                 const healthData = await response.json();
@@ -194,11 +174,7 @@ class AdminDashboard {
         }
     }
 
-    /**
-     * Update connection status indicator
-     */
     updateConnectionStatus(isConnected) {
-        // Add a connection status indicator to the header if it doesn't exist
         let statusIndicator = document.getElementById('connection-status');
         if (!statusIndicator) {
             statusIndicator = document.createElement('div');
@@ -213,13 +189,11 @@ class AdminDashboard {
                 transition: all 0.3s ease;
                 z-index: 10;
             `;
-            // NOTE: Assumes an element with class 'admin-header' exists in your HTML
             const adminHeader = document.querySelector('.admin-header');
             if (adminHeader) {
                 adminHeader.appendChild(statusIndicator);
             } else {
-                // Fallback for demonstration if admin-header isn't present
-                console.warn("Could not find '.admin-header' element to attach status indicator.");
+                console.warn("Could not find '.admin-header' element");
             }
         }
 
@@ -232,9 +206,6 @@ class AdminDashboard {
         }
     }
 
-    /**
-     * Load initial data with enhanced error handling
-     */
     async loadInitialData() {
         try {
             await Promise.all([
@@ -250,34 +221,24 @@ class AdminDashboard {
         }
     }
 
-    /**
-     * Load system statistics from enhanced backend
-     */
     async loadSystemStats() {
         try {
-            // Uses the default (standard) timeout
             const response = await this.fetchWithRetry(`${this.apiBase}/stats`); 
             if (!response.ok) return;
 
             const stats = await response.json();
             console.log('System stats loaded:', stats);
-            
-            // Could add more detailed stats display here if needed
         } catch (error) {
             console.warn('Failed to load system stats:', error);
         }
     }
 
-    /**
-     * Enhanced file upload with performance tracking
-     */
     async handleFileUpload(files) {
         if (!files || files.length === 0) return;
 
         const startTime = Date.now();
-        console.log(`Starting upload process for ${files.length} file(s)`);
+        console.log(`Starting upload for ${files.length} file(s)`);
         
-        // Show loading state
         this.showLoading(true);
         this.showProgress(true);
         this.clearStatus('upload');
@@ -287,16 +248,15 @@ class AdminDashboard {
         const errors = [];
         const uploadResults = [];
 
-        // Process each file
+        // process each file
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
             const progress = ((i + 1) / files.length) * 100;
             
-            console.log(`📄 Processing file ${i + 1}/${files.length}: ${file.name} (${this.formatFileSize(file.size)})`);
+            console.log(`Processing file ${i + 1}/${files.length}: ${file.name} (${this.formatFileSize(file.size)})`);
             this.updateProgress(progress);
 
             try {
-                // Pass a flag to use the longer timeout
                 const result = await this.uploadSingleFile(file); 
                 successCount++;
                 uploadResults.push(result);
@@ -308,18 +268,17 @@ class AdminDashboard {
             }
         }
 
-        // Update performance stats
+        // update performance stats
         const totalTime = Date.now() - startTime;
         this.updatePerformanceStats(successCount, totalTime);
 
-        // Hide loading state
         this.showLoading(false);
         this.showProgress(false);
 
-        // Show enhanced results
+        // show results
         this.showUploadResults(successCount, errorCount, errors, uploadResults);
 
-        // Refresh data if any uploads succeeded
+        // refresh if any succeeded
         if (successCount > 0) {
             await this.loadFileList();
             await this.loadStats();
@@ -328,21 +287,15 @@ class AdminDashboard {
         this.fileInput.value = '';
     }
 
-    /**
-     * Update performance statistics
-     */
     updatePerformanceStats(successCount, totalTime) {
         this.performanceStats.totalUploads += successCount;
         this.performanceStats.totalUploadTime += totalTime;
         this.performanceStats.averageUploadTime = 
             this.performanceStats.totalUploadTime / Math.max(this.performanceStats.totalUploads, 1);
         
-        console.log('📈 Performance stats updated:', this.performanceStats);
+        console.log('Performance stats updated:', this.performanceStats);
     }
 
-    /**
-     * Enhanced upload results display
-     */
     showUploadResults(successCount, errorCount, errors, uploadResults) {
         if (successCount > 0 && errorCount === 0) {
             const avgProcessingTime = uploadResults.reduce((sum, result) => 
@@ -368,18 +321,14 @@ class AdminDashboard {
         }
     }
 
-    /**
-     * Enhanced file upload with better error handling
-     */
     async uploadSingleFile(file) {
         const formData = new FormData();
         formData.append('file', file);
 
-        // IMPORTANT: Call fetchWithRetry with a specific option to use the UPLOAD_TIMEOUT_MS
         const response = await this.fetchWithRetry(`${this.apiBase}/ingest`, {
             method: 'POST',
             body: formData,
-        }, null, this.UPLOAD_TIMEOUT_MS); // Pass custom timeout here
+        }, null, this.UPLOAD_TIMEOUT_MS);
 
         if (!response.ok) {
             let errorData;
@@ -389,7 +338,6 @@ class AdminDashboard {
                 errorData = { detail: `HTTP ${response.status}: ${response.statusText}` };
             }
             
-            // Handle specific error cases
             if (response.status === 413) {
                 throw new Error('File too large (max 100MB)');
             } else if (response.status === 400 && errorData.detail?.includes('already been uploaded')) {
@@ -402,9 +350,6 @@ class AdminDashboard {
         return await response.json();
     }
 
-    /**
-     * Enhanced file list rendering with delete buttons
-     */
     renderFileList(files) {
         if (!this.fileList) {
             console.error('File list element not found');
@@ -454,12 +399,9 @@ class AdminDashboard {
         }).join('');
 
         this.fileList.innerHTML = fileListHTML;
-        console.log(`Rendered ${files.length} files in list`);
+        console.log(`Rendered ${files.length} files`);
     }
 
-    /**
-     * Get color for file type badge
-     */
     getFileTypeColor(fileType) {
         const colorMap = {
             'PDF': '#e53e3e',
@@ -475,11 +417,8 @@ class AdminDashboard {
         return colorMap[fileType] || '#5a67d8';
     }
 
-    /**
-     * ENHANCED: Delete specific file using new backend endpoint
-     */
     async deleteFile(filename) {
-        console.log(`🗑️ Delete request for file: ${filename}`);
+        console.log(`Delete request for: ${filename}`);
         
         if (!confirm(`Are you sure you want to delete "${filename}"? This action cannot be undone.`)) {
             return;
@@ -488,7 +427,6 @@ class AdminDashboard {
         try {
             this.showStatus('file', `Deleting ${filename}...`, 'info');
 
-            // Uses the default (standard) timeout
             const response = await this.fetchWithRetry(`${this.apiBase}/files/${encodeURIComponent(filename)}`, { 
                 method: 'DELETE',
             });
@@ -505,7 +443,6 @@ class AdminDashboard {
             const result = await response.json();
             this.showStatus('file', `${result.message}`, 'success');
             
-            // Refresh data
             await this.loadFileList();
             await this.loadStats();
             
@@ -516,13 +453,9 @@ class AdminDashboard {
         }
     }
 
-    /**
-     * Load file list with enhanced error handling
-     */
     async loadFileList() {
         try {
-            console.log('📋 Loading file list...');
-            // Uses the default (standard) timeout
+            console.log('Loading file list...');
             const response = await this.fetchWithRetry(`${this.apiBase}/files`); 
             
             if (!response.ok) {
@@ -540,13 +473,9 @@ class AdminDashboard {
         }
     }
 
-    /**
-     * Load statistics with enhanced display
-     */
     async loadStats() {
         try {
-            console.log('📊 Loading statistics...');
-            // Uses the default (standard) timeout
+            console.log('Loading statistics...');
             const response = await this.fetchWithRetry(`${this.apiBase}/files`); 
             
             if (!response.ok) {
@@ -555,7 +484,6 @@ class AdminDashboard {
 
             const data = await response.json();
             
-            // Update statistics with animation
             this.animateCounter(this.totalFilesEl, data.total_files || 0);
             this.animateCounter(this.totalDocumentsEl, data.total_documents || 0);
             this.animateCounter(this.totalChunksEl, data.total_chunks || 0);
@@ -563,16 +491,12 @@ class AdminDashboard {
             console.log('Statistics updated');
         } catch (error) {
             console.error('Failed to load statistics:', error);
-            // Set to 0 on error
             if (this.totalFilesEl) this.totalFilesEl.textContent = '0';
             if (this.totalDocumentsEl) this.totalDocumentsEl.textContent = '0';
             if (this.totalChunksEl) this.totalChunksEl.textContent = '0';
         }
     }
 
-    /**
-     * Enhanced clear all files with better confirmation
-     */
     async clearAllFiles() {
         const fileCount = this.fileList?.querySelectorAll('.file-item').length || 0;
         
@@ -582,21 +506,20 @@ class AdminDashboard {
         }
 
         const confirmMessage = `Are you sure you want to clear all ${fileCount} files?\n\n` +
-                                          `This will:\n` +
-                                          `• Delete all uploaded documents\n` +
-                                          `• Clear the knowledge base\n` +
-                                          `• Reset conversation history\n\n` +
-                                          `This action cannot be undone.`;
+                                          `This will:\n` +
+                                          `• Delete all uploaded documents\n` +
+                                          `• Clear the knowledge base\n` +
+                                          `• Reset conversation history\n\n` +
+                                          `This action cannot be undone.`;
 
         if (!confirm(confirmMessage)) {
             return;
         }
 
         try {
-            console.log('🗑️ Clearing all files...');
+            console.log('Clearing all files...');
             this.showStatus('file', 'Clearing all files...', 'info');
 
-            // Uses the default (standard) timeout
             const response = await this.fetchWithRetry(`${this.apiBase}/files`, { 
                 method: 'DELETE',
             });
@@ -607,28 +530,21 @@ class AdminDashboard {
 
             this.showStatus('file', 'All files cleared successfully!', 'success');
             
-            // Refresh data
             await this.loadFileList();
             await this.loadStats();
             
-            console.log('All files cleared successfully');
+            console.log('All files cleared');
         } catch (error) {
             console.error('Failed to clear files:', error);
             this.showStatus('file', `Failed to clear files: ${error.message}`, 'error');
         }
     }
 
-    /**
-     * MODIFIED: Enhanced fetch with dynamic timeout based on call
-     */
     async fetchWithRetry(url, options = {}, retries = this.maxRetries, customTimeout = this.STANDARD_TIMEOUT_MS) {
-        
-        // Use the custom timeout provided, or fall back to the standard one
         const timeoutMs = customTimeout; 
         
         try {
             const controller = new AbortController();
-            // Pass the dynamic timeout value here
             const timeoutId = setTimeout(() => { 
                 console.warn(`Request to ${url} timed out after ${timeoutMs / 1000}s`);
                 controller.abort();
@@ -645,29 +561,21 @@ class AdminDashboard {
             clearTimeout(timeoutId);
             return response;
         } catch (error) {
-            // Only retry if it's NOT an AbortError (timeout)
             if (retries > 0 && error.name !== 'AbortError') { 
                 console.warn(`Fetch failed, retrying... (${retries} attempts left):`, error.message);
                 await this.delay(this.retryDelay);
-                // Pass the customTimeout to the recursive call
                 return this.fetchWithRetry(url, options, retries - 1, customTimeout); 
             }
             throw error;
         }
     }
 
-    /**
-     * Show/hide loading spinner
-     */
     showLoading(show) {
         if (this.loadingContainer) {
             this.loadingContainer.style.display = show ? 'flex' : 'none';
         }
     }
 
-    /**
-     * Show/hide progress bar
-     */
     showProgress(show) {
         if (this.progressBar) {
             this.progressBar.style.display = show ? 'block' : 'none';
@@ -677,18 +585,12 @@ class AdminDashboard {
         }
     }
 
-    /**
-     * Update progress bar
-     */
     updateProgress(percent) {
         if (this.progressFill) {
             this.progressFill.style.width = `${Math.min(100, Math.max(0, percent))}%`;
         }
     }
 
-    /**
-     * Enhanced status messages with icons
-     */
     showStatus(type, message, status) {
         const statusEl = type === 'upload' ? this.uploadStatus : this.fileStatus;
         
@@ -700,15 +602,11 @@ class AdminDashboard {
         statusEl.className = `status-message status-${status} show`;
         statusEl.textContent = `${message}`;
 
-        // Auto-hide after delay
         setTimeout(() => {
             statusEl.classList.remove('show');
         }, status === 'error' ? 10000 : 6000);
     }
 
-    /**
-     * Clear status message
-     */
     clearStatus(type) {
         const statusEl = type === 'upload' ? this.uploadStatus : this.fileStatus;
         if (statusEl) {
@@ -716,14 +614,11 @@ class AdminDashboard {
         }
     }
 
-    /**
-     * Animate counter with better performance
-     */
     animateCounter(element, target) {
         if (!element) return;
 
         const current = parseInt(element.textContent) || 0;
-        const increment = Math.ceil((target - current) / 15); // Faster animation
+        const increment = Math.ceil((target - current) / 15);
         
         if (increment === 0) {
             element.textContent = target;
@@ -740,12 +635,9 @@ class AdminDashboard {
             }
             
             element.textContent = value;
-        }, 30); // Smoother animation
+        }, 30);
     }
 
-    /**
-     * Format file size
-     */
     formatFileSize(bytes) {
         if (bytes === 0) return '0 B';
         
@@ -756,9 +648,6 @@ class AdminDashboard {
         return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
     }
 
-    /**
-     * Format date with better formatting
-     */
     formatDate(dateString) {
         try {
             const date = new Date(dateString);
@@ -774,9 +663,6 @@ class AdminDashboard {
         }
     }
 
-    /**
-     * Escape HTML to prevent XSS
-     */
     escapeHtml(unsafe) {
         return unsafe
             .replace(/&/g, "&amp;")
@@ -786,23 +672,16 @@ class AdminDashboard {
             .replace(/'/g, "&#039;");
     }
     
-    /**
-     * Delay utility
-     */
     delay(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    /**
-     * Enhanced auto-refresh with health checks
-     */
     startAutoRefresh() {
         setInterval(async () => {
             try {
                 console.log('Auto-refreshing dashboard data...');
                 await this.loadStats();
                 await this.checkBackendHealth();
-                // Only refresh file list if there are files
                 if (this.fileList?.querySelectorAll('.file-item').length > 0) {
                     await this.loadFileList();
                 }
@@ -810,14 +689,14 @@ class AdminDashboard {
                 console.warn('Auto-refresh failed:', error);
                 this.updateConnectionStatus(false);
             }
-        }, 30000); // Refresh every 30 seconds
+        }, 30000); // refresh every 30 seconds
     }
 }
 
-// Initialize the enhanced admin dashboard
+// initialize dashboard
 const adminDashboard = new AdminDashboard();
 
-// Global error handlers
+// global error handlers
 window.addEventListener('error', (event) => {
     console.error('Global error:', event.error);
 });
@@ -826,4 +705,4 @@ window.addEventListener('unhandledrejection', (event) => {
     console.error('Unhandled promise rejection:', event.reason);
 });
 
-console.log('Enhanced Admin Dashboard script loaded successfully');
+console.log('Admin dashboard script loaded');
