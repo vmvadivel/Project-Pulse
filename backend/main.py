@@ -9,6 +9,7 @@ from exceptions import *
 from config import *
 from utils import *
 from services import DocumentStore, process_document_sync
+from middleware import GZipMiddleware
 
 from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -54,6 +55,14 @@ app = FastAPI(
 # Register custom error handlers
 register_error_handlers(app)
 logger.info("Custom error handlers registered")
+
+# Enable Gzip compression
+app.add_middleware(
+    GZipMiddleware,
+    minimum_size=500,      # Only compress responses > 500 bytes
+    compression_level=6,   # Balanced compression (1-9)
+)
+logger.info("GZip compression middleware configured")
 
 # Enable CORS
 app.add_middleware(
@@ -118,7 +127,7 @@ def read_root():
     return {
         "message": APP_TITLE,
         "version": APP_VERSION,
-        "features": APP_FEATURES,
+        "features": APP_FEATURES + ["GZip Compression"],
         "storage": get_storage_info(),
         "llm_provider": LLM_PROVIDER,
         "reranking_enabled": ENABLE_RERANKING,
